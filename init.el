@@ -74,8 +74,7 @@
 (setq backup-directory-alist
       (list (cons "." (=cache-subdirectory "backup"))))
 
-(setq project-list-file
-      (expand-file-name "projects" (=cache-subdirectory "project")))
+(setq project-list-file (=cache-file "projects"))
 
 ;; Better consulting commands
 (elpaca consult
@@ -196,7 +195,8 @@ Operate on the region defined by START to END."
 	org-agenda-files (list org-directory)))
 
 (elpaca org-roam
-  (setq org-roam-directory (expand-file-name "roam" org-directory)))
+  (setq org-roam-directory (expand-file-name "roam" org-directory)
+	org-roam-db-location (=cache-file "org-roam.db")))
 
 (elpaca vterm)
 

@@ -9,6 +9,7 @@
 ;; - disabling package.el, emacs's standard package manager.
 ;; - re-routing the eln-cache to its appropriate place.
 ;; - disabling the gc during startup.
+;; - setting the initial size of the frame.
 
 ;;; Code:
 
@@ -27,6 +28,10 @@
 (defun =cache-subdirectory (domain)
   "A stable directory to cache files from DOMAIN in."
   (expand-file-name (concat (=slugify-to-file-name domain) "/") =cache-directory))
+
+(defun =cache-file (domain)
+  "A stable file name for DOMAIN."
+  (expand-file-name (=slugify-to-file-name domain) =cache-directory))
 
 (setq package-enable-at-startup nil)
 
@@ -47,3 +52,11 @@
 ;; reverted.
 (scroll-bar-mode -1)
 (tool-bar-mode -1)
+
+(setq
+ frame-resize-pixelwise t
+ initial-frame-alist
+      '((width . 0.5) (height . 1.0)
+	(top . 0) (left . 1.0)))
+
+;;; early-init.el ends here
