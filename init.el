@@ -37,7 +37,10 @@
 
 ;;; Splash screen
 
-(defun =initial-buffer-choice () (get-buffer-create "*scratch*"))
+(defun =initial-buffer-choice ()
+  "The splash screen."
+  (get-buffer-create "*scratch*"))
+
 (setq initial-scratch-message nil)
 (setq initial-buffer-choice #'=initial-buffer-choice)
 
@@ -49,13 +52,17 @@
 
 ;;; UI
 
+(setq use-short-answers t)
 (setq ring-bell-function 'ignore)
 (unless (display-graphic-p)
   (menu-bar-mode -1))
 
+;; Cursor
 (setq-default cursor-type 'bar)
 (blink-cursor-mode -1)
 
+(line-number-mode +1)
+(column-number-mode +1)
 
 ;;; Miscellaneous
 
@@ -67,9 +74,22 @@
 (setq backup-directory-alist
       (list (cons "." (=cache-subdirectory "backup"))))
 
+(setq project-list-file
+      (expand-file-name "projects" (=cache-subdirectory "project")))
 
 ;; Better consulting commands
-(elpaca consult)
+(elpaca consult
+  (global-set-key [remap goto-line] #'consult-goto-line)
+  (global-set-key [remap Info-search] #'consult-info)
+  (global-set-key [remap yank-pop] #'consult-yank-pop)
+  (global-set-key [remap imenu] #'consult-imenu)
+  (setq consult-register-prefix nil) ;; We don't want to type a prefix
+				     ;; for all searches
+  (global-set-key [remap jump-to-register] #'consult-register-load)
+  (global-set-key [remap switch-to-buffer] #'consult-buffer)
+  (global-set-key [remap switch-to-buffer-other-frame] #'consult-buffer-other-frame)
+  (global-set-key [remap switch-to-buffer-other-window] #'consult-buffer-other-window)
+  (define-key isearch-mode-map [remap isearch-edit-string] #'consult-isearch-history))
 
 ;;; Completion
 
@@ -116,7 +136,6 @@
   "Run BODY when MODE is initialized."
   (declare (indent defun))
   (let ((fn (intern (concat "=" (symbol-name mode) "-init"))))
-    (message "Expanding macro: mode: %s, fn: %s, body: %s" mode fn body)
     `(progn
        (defun ,fn ()
 	 ,@body)
@@ -168,7 +187,13 @@ Operate on the region defined by START to END."
 (elpaca org
   (setq org-directory "~/Documents/org"
 	org-log-done 'note
-	org-agenda-span 'week))
+	org-agenda-span 'week
+	org-todo-keywords
+	'((sequence "TODO(t)" "DONE(d)")
+	  (type "PROJ(p)")
+	  (type "KILL(k)")
+	  (type "LOOP(l)"))
+	org-agenda-files (list org-directory)))
 
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)))
