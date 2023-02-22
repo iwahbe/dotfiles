@@ -1,4 +1,4 @@
-;;; init.el --- Load my config for emacs -*- lexical-binding: t; -*-
+;;; init.el --- Load my config for Emacs -*- lexical-binding: t; -*-
 
 ;;; Code:
 
@@ -102,7 +102,7 @@ element is a single line.")
   (mapcar (lambda (x) (expand-file-name x =assets-directory))
 	  '("gnu-head.svg"
 	    "emacs-icon.svg"))
-  "A list of graphical banners to open emacs with.
+  "A list of graphical banners to open Emacs with.
 Each element is expected to be the path to a SVG file.")
 
 (setq initial-scratch-message nil)
@@ -174,7 +174,7 @@ Each element is expected to be the path to a SVG file.")
     ;; C-SPC works in GUI, but not in the terminal.
     (define-key corfu-map (kbd d) #'corfu-insert)))
 
-;; The corfu display itself is restricted to GUI emacs, so we enable
+;; The corfu display itself is restricted to GUI Emacs, so we enable
 ;; another mode when we are restricted to a TTY
 (unless (display-graphic-p)
   ;; Since we don't need the additional mode on GUI, only download it

@@ -6,7 +6,7 @@
 ;; in the initialization process.
 ;;
 ;; This includes:
-;; - disabling package.el, emacs's standard package manager.
+;; - disabling package.el, Emacs's standard package manager.
 ;; - re-routing the eln-cache to its appropriate place.
 ;; - disabling the gc during startup.
 ;; - setting the initial size of the frame.
@@ -15,7 +15,6 @@
 
 (defun =slugify-to-file-name (name)
   "Transform NAME to a normal and ascetic file name."
-  ;; TODO
   (when (string-empty-p name)
     (error "Cannot slugify empty string"))
   (string-replace
