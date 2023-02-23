@@ -76,6 +76,7 @@ when it is created."
 	  (center-region (point-min) (point-max))))
       (setq cursor-type nil)
       (read-only-mode)
+      (goto-char (point-min))
       (setq mode-line-format nil)
       (current-buffer))))
 
@@ -282,7 +283,25 @@ Operate on the region defined by START to END."
 ;; look nice.
 (elpaca org-bullets
   (setq org-hide-emphasis-markers t
-	org-startup-indented t))
+	org-startup-indented t
+	org-pretty-entities t))
+
+(custom-theme-set-faces
+ 'user
+ '(variable-pitch ((t (:family "Helvetica" :height 180 :weight thin))))
+ '(fixed-pitch ((t ( :family "Fira Code Retina" :height 160))))
+ '(org-block ((t (:inherit fixed-pitch))))
+ '(org-code ((t (:inherit (shadow fixed-pitch)))))
+ '(org-document-info ((t (:foreground "dark orange"))))
+ '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+ '(org-indent ((t (:inherit (org-hide fixed-pitch)))))
+ '(org-link ((t (:foreground "royal blue" :underline t))))
+ '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+ '(org-property-value ((t (:inherit fixed-pitch))) t)
+ '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+ '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
+ '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
+ '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
 
 (=defun-init org-mode
   (org-bullets-mode)
@@ -303,7 +322,6 @@ Operate on the region defined by START to END."
   (=defun-init go-mode
     (eglot)
     (add-hook 'before-save-hook #'gofmt-before-save nil t)))
-
 
 (elpaca markdown-mode
   (autoload 'markdown-mode "markdown-mode"
