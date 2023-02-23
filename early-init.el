@@ -28,9 +28,15 @@
   "A stable directory to cache files from DOMAIN in."
   (expand-file-name (concat (=slugify-to-file-name domain) "/") =cache-directory))
 
-(defun =cache-file (domain)
-  "A stable file name for DOMAIN."
-  (expand-file-name (=slugify-to-file-name domain) =cache-directory))
+(defun =cache-file (file &optional domain)
+  "A stable file name for FILE, located in DOMAIN if provided."
+  (expand-file-name (=slugify-to-file-name file)
+		    (if domain
+			(let ((s (=cache-subdirectory domain)))
+			  (unless (file-executable-p s)
+			    (mkdir s))
+			  s)
+		      =cache-directory)))
 
 (setq package-enable-at-startup nil)
 

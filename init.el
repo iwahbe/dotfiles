@@ -113,9 +113,12 @@ Each element is expected to be the path to a SVG file.")
 
 (defun display-startup-echo-area-message ()
   "Override the default help message by redefining the called function."
-  (message "Loaded %s packages in %s seconds"
+  (message "Loaded %s packages in %f seconds"
 	   (length (elpaca--queued))
-	   (emacs-init-time)))
+	   (float-time
+	    (time-subtract
+	     elpaca-after-init-time
+	     before-init-time))))
 
 ;;; UI
 
@@ -132,6 +135,12 @@ Each element is expected to be the path to a SVG file.")
 (column-number-mode +1)
 
 ;;; Miscellaneous
+
+(setq save-place-file (=cache-file "places"))
+(save-place-mode +1)
+
+(elpaca (ws-butler :host github :repo "hlissner/ws-butler")
+  (ws-butler-global-mode))
 
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 
@@ -270,6 +279,7 @@ Operate on the region defined by START to END."
   ;; Set the root of the org directory. This is the expected location
   ;; for all stand-alone org documents.
   (setq org-directory "~/Documents/org"
+	org-id-locations-file (=cache-file "id-locations" "org")
 	org-log-done 'note
 	org-agenda-span 'week
 	org-todo-keywords
@@ -286,10 +296,14 @@ Operate on the region defined by START to END."
 	org-startup-indented t
 	org-pretty-entities t))
 
+;; This snippet provides variable and fixed pitch fonts to different
+;; parts of org-mode.  It was borrowed from
+;; https://zzamboni.org/post/beautifying-org-mode-in-emacs/, and then
+;; modified.
 (custom-theme-set-faces
  'user
- '(variable-pitch ((t (:family "Helvetica" :height 180 :weight thin))))
- '(fixed-pitch ((t ( :family "Fira Code Retina" :height 160))))
+ '(variable-pitch ((t (:family "Helvetica"))))
+ '(fixed-pitch ((t ( :family "Fira Code Retina"))))
  '(org-block ((t (:inherit fixed-pitch))))
  '(org-code ((t (:inherit (shadow fixed-pitch)))))
  '(org-document-info ((t (:foreground "dark orange"))))
@@ -310,7 +324,7 @@ Operate on the region defined by START to END."
 
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)
-	org-roam-db-location (=cache-file "org-roam.db")))
+	org-roam-db-location (=cache-file "roam.db" "org")))
 
 (elpaca vterm
   (setq vterm-environment
