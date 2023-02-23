@@ -142,35 +142,49 @@ Each element is expected to be the path to a SVG file.")
 (setq backup-directory-alist
       (list (cons "." (=cache-subdirectory "backup"))))
 
-(setq project-list-file (=cache-file "projects"))
-
 ;; Better consulting commands
 (elpaca consult
   (global-set-key [remap goto-line] #'consult-goto-line)
   (global-set-key [remap Info-search] #'consult-info)
   (global-set-key [remap yank-pop] #'consult-yank-pop)
   (global-set-key [remap imenu] #'consult-imenu)
-  (setq consult-register-prefix nil) ;; We don't want to type a prefix
-				     ;; for all searches
+
+  ;; We don't want to type a prefix for all searches
+  (setq consult-register-prefix nil)
+
   (global-set-key [remap jump-to-register] #'consult-register-load)
   (global-set-key [remap switch-to-buffer] #'consult-buffer)
   (global-set-key [remap switch-to-buffer-other-frame] #'consult-buffer-other-frame)
   (global-set-key [remap switch-to-buffer-other-window] #'consult-buffer-other-window)
   (define-key isearch-mode-map [remap isearch-edit-string] #'consult-isearch-history))
 
+;;; Project Management
+
+(setq project-list-file (=cache-file "projects")
+      project-switch-commands '((project-find-file "Find file" "f")
+				(consult-find "`find` file" "C-f")
+				(consult-ripgrep "Find regexp" "g")
+				(magit "Git" "v")
+				(vterm "Shell" "t")))
+
 ;;; Completion
 
 ;; A vertical completion framework, applying a nicer UX to default
 ;; compleating-read style completion.
-(elpaca vertico (vertico-mode))
+(elpaca vertico
+  (setq vertico-cycle t)
+  (vertico-mode))
 
 (elpaca marginalia (marginalia-mode))
+
+(elpaca orderless
+  (setq completion-styles '(orderless basic)
+	completion-category-overrides '((file (styles basic partial-completion)))))
 
 (elpaca corfu
   (setq corfu-auto t
 	corfu-auto-delay 0
-	corfu-auto-prefix 1
-	completion-styles '(basic))
+	corfu-auto-prefix 1)
   (global-corfu-mode)
   (define-key corfu-map (kbd "RET") nil t)
   (dolist (d '("C-@" "C-SPC"))
