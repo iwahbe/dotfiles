@@ -266,6 +266,8 @@ Operate on the region defined by START to END."
    transient-levels-file (expand-file-name "levels.el" =transient-cache-dir)))
 
 (elpaca org
+  ;; Set the root of the org directory. This is the expected location
+  ;; for all stand-alone org documents.
   (setq org-directory "~/Documents/org"
 	org-log-done 'note
 	org-agenda-span 'week
@@ -276,15 +278,46 @@ Operate on the region defined by START to END."
 	  (type "LOOP(l)"))
 	org-agenda-files (list org-directory)))
 
+;; Because org is often used as a writing environment, we want it to
+;; look nice.
+(elpaca org-bullets
+  (setq org-hide-emphasis-markers t
+	org-startup-indented t))
+
+(=defun-init org-mode
+  (org-bullets-mode)
+  (variable-pitch-mode)
+  (visual-line-mode))
+
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)
 	org-roam-db-location (=cache-file "org-roam.db")))
 
-(elpaca vterm)
+(elpaca vterm
+  (setq vterm-environment
+	(list (concat "VTERM_DATA="
+		      (expand-file-name "repos/emacs-libvterm/etc/emacs-vterm-zsh.sh"
+					elpaca-directory)))))
 
 (elpaca go-mode
   (=defun-init go-mode
     (eglot)
     (add-hook 'before-save-hook #'gofmt-before-save nil t)))
+
+
+(elpaca markdown-mode
+  (autoload 'markdown-mode "markdown-mode"
+    "Major mode for editing Markdown files" t)
+  (add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode))
+  (add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
+
+  (autoload 'gfm-mode "markdown-mode"
+    "Major mode for GitHub Flavored Markdown files" t)
+  (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+
+;; We load user customizations at the end to make sure that the
+;; init.el load succeeds.
+(when (file-exists-p custom-file)
+  (load custom-file))
 
 ;;; init.el ends here
