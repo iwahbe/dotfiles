@@ -232,28 +232,38 @@ Each element is expected to be the path to a SVG file.")
 (setq gc-cons-threshold 100000000
       read-process-output-max (* 1024 1024))
 
-(defmacro dbg(form)
+(defmacro dbg (form)
   "Print FORM => RES where res is what FORM evaluate to. Return RES."
   `(let ((res ,form)) (message "dbg: %s => %s" '(,@form) res) res))
 
 ;;; Major modes
 
-(defmacro =defun-init (mode &rest body)
-  "Run BODY when MODE is initialized."
+(defmacro =add-hook (mode &rest hooks)
+  "Attach multiple HOOKS to a MODE hook.
+It is optional to quote MODE."
   (declare (indent defun))
-  (let ((fn (intern (concat "=" (symbol-name mode) "-init"))))
-    `(progn
-       (defun ,fn ()
-	 ,@body)
-       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #',fn)
-       #',fn)))
+  `(progn
+     ,@(mapcar
+	(lambda (hook) `(add-hook
+			 ,(if (eq (car-safe mode) 'quote)
+			      mode
+			    `(quote ,mode))
+			 ,hook))
+	hooks)))
 
-(=defun-init text-mode
-  (flyspell-mode))
+(=add-hook text-mode-hook
+  #'flyspell-mode)
 
-(=defun-init prog-mode
-  (flyspell-prog-mode)
-  (flymake-mode))
+(=add-hook prog-mode-hook
+  #'flyspell-prog-mode
+  #'flyspell-mode)
+
+;; `emacs-lisp-mode': The major mode for hacking on your editor, when
+;; you should be doing something else.
+(elpaca highlight-defined
+  ;; `highlight-defined-mode' highlights font-locks defined symbols and functions.
+  (setq highlight-defined-face-use-itself t) ;; Use standard faces when highlighting.
+  (add-hook 'emacs-lisp-mode-hook #'highlight-defined-mode))
 
 (elpaca jsonian
   (setq jsonian-ignore-font-lock (>= emacs-major-version 29)))
@@ -332,10 +342,10 @@ Operate on the region defined by START to END."
  '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
  '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
 
-(=defun-init org-mode
-  (org-bullets-mode)
-  (variable-pitch-mode)
-  (visual-line-mode))
+(=add-hook org-mode-hook
+  #'org-bullets-mode
+  #'variable-pitch-mode
+  #'visual-line-mode)
 
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)
@@ -347,10 +357,9 @@ Operate on the region defined by START to END."
 		      (expand-file-name "repos/emacs-libvterm/etc/emacs-vterm-zsh.sh"
 					elpaca-directory)))))
 
-(elpaca go-mode
-  (=defun-init go-mode
-    (eglot)
-    (add-hook 'before-save-hook #'gofmt-before-save nil t)))
+(=add-hook go-mode-hook
+  #'eglot
+  (lambda () (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 
 (elpaca markdown-mode
   (autoload 'markdown-mode "markdown-mode"
