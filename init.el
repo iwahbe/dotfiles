@@ -136,6 +136,18 @@ Each element is expected to be the path to a SVG file.")
 
 ;;; Miscellaneous
 
+;; Native compiling packages can emit warnings or errors which are not
+;; actionable. We don't want these to pop up when compiling, so we
+;; send them to the *Warnings* buffer.
+(setq native-comp-async-report-warnings-errors 'silent)
+
+;; Helpful is a package
+(elpaca helpful
+  (global-set-key [remap describe-function] #'helpful-callable)
+  (global-set-key [remap describe-key] #'helpful-key)
+  (global-set-key [remap describe-variable] #'helpful-variable)
+  (global-set-key [remap describe-command] #'helpful-command))
+
 (setq save-place-file (=cache-file "places"))
 (save-place-mode +1)
 
