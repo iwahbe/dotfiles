@@ -136,6 +136,9 @@ Each element is expected to be the path to a SVG file.")
 
 ;;; Miscellaneous
 
+(load (expand-file-name "gtq.el" user-emacs-directory))
+(global-set-key (kbd "C-'") #'gtq-goto)
+
 ;; Native compiling packages can emit warnings or errors which are not
 ;; actionable. We don't want these to pop up when compiling, so we
 ;; send them to the *Warnings* buffer.
