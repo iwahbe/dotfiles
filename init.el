@@ -122,6 +122,21 @@ Each element is expected to be the path to a SVG file.")
 
 ;;; UI
 
+(defun =load-theme (theme)
+  "Load THEME without asking for permission."
+  (load-theme (pcase theme
+		('light 'spacemacs-light)
+		('dark 'spacemacs-dark)
+		(other other))
+	      t)
+  ;; Disable previous themes
+  (mapc #'disable-theme (cdr custom-enabled-themes)))
+
+(elpaca spacemacs-theme
+  (if (boundp 'ns-system-appearance)
+      (=add-hook ns-system-appearance-change-functions #'=load-theme)
+    (=load-theme 'light)))
+
 (setq use-short-answers t)
 (setq ring-bell-function 'ignore)
 (unless (display-graphic-p)
