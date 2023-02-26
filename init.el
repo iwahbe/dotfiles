@@ -42,43 +42,52 @@
 It is assumed that the splash screen will occupy the whole frame
 when it is created."
   (if (not (eq (current-buffer) (get-buffer "*scratch*")))
+      ;; If the current buffer is not *scratch*, then Emacs was opened
+      ;; onto a file, so we should just display that file.
       (current-buffer)
     (with-current-buffer (get-buffer-create "*Splash Screen*")
-      (when buffer-read-only
-	(read-only-mode -1))
-      (unless (eq (buffer-size) 0)
-	(erase-buffer))
-      (if (and (display-graphic-p) (featurep 'image))
-	  (let* ((img
-		  (create-image
-		   (nth (random (length =emacs-graphic-banners))
-			=emacs-graphic-banners)
-		   nil nil :width (* (/ (frame-pixel-width) 3) 2)))
-		 (img-size (image-size img))
-		 (img-width (round (car img-size)))
-		 (img-height (round (cdr img-size))))
-	    ;; We want to center the image around 1/3 down the
-	    ;; screen. Since the image insert holds the top of the
-	    ;; image, we need to adjust the insert point by adding
-	    ;; newlines.
-	    (insert (make-string (max (- (/ (frame-height) 3) (/ img-height 2)) 0) ?\n))
-	    ;; Likewise, we want to insert the image in the center of
-	    ;; the screen but the image inserts from the left. We pad
-	    ;; our insert point with spaces.
-	    (insert (make-string (max (- (/ (frame-width) 2) (/ img-width 2)) 0) ? ))
-	    (insert-image img nil nil nil t))
-	(let ((banner (nth (random (length =emacs-text-banners)) =emacs-text-banners))
-	      (empty-line "\n"))
-	  (dotimes (_ (- (/ (frame-height) 3) (/ (length banner) 2) 2))
-	    (insert empty-line))
-	  (mapc (lambda (x) (insert x "\n")) banner))
-	(let ((fill-column (frame-width)))
-	  (center-region (point-min) (point-max))))
-      (setq cursor-type nil)
       (read-only-mode)
-      (goto-char (point-min))
-      (setq mode-line-format nil)
-      (current-buffer))))
+      (let ((inhibit-read-only t))
+	(unless (eq (buffer-size) 0)
+	  (erase-buffer))
+	(if (and (display-graphic-p) (featurep 'image))
+	    (=splash-buffer--graphic)
+	  (=splash-buffer--text))
+	(setq cursor-type nil)
+	(goto-char (point-min))
+	(setq mode-line-format nil)
+	(current-buffer)))))
+
+(defun =splash-buffer--graphic ()
+  "Display the splash screen with graphics."
+  (let* ((img
+	  (create-image
+	   (nth (random (length =emacs-graphic-banners))
+		=emacs-graphic-banners)
+	   nil nil :width (* (/ (frame-pixel-width) 3) 2)))
+	 (img-size (image-size img))
+	 (img-width (round (car img-size)))
+	 (img-height (round (cdr img-size))))
+    ;; We want to center the image around 1/3 down the
+    ;; screen. Since the image insert holds the top of the
+    ;; image, we need to adjust the insert point by adding
+    ;; newlines.
+    (insert (make-string (max (- (/ (frame-height) 3) (/ img-height 2)) 0) ?\n))
+    ;; Likewise, we want to insert the image in the center of
+    ;; the screen but the image inserts from the left. We pad
+    ;; our insert point with spaces.
+    (insert (make-string (max (- (/ (frame-width) 2) (/ img-width 2)) 0) ? ))
+    (insert-image img nil nil nil t)))
+
+(defun =splash-buffer--text ()
+  "Display the splash screen with only text."
+  (let ((banner (nth (random (length =emacs-text-banners)) =emacs-text-banners))
+	(empty-line "\n"))
+    (dotimes (_ (- (/ (frame-height) 3) (/ (length banner) 2) 2))
+      (insert empty-line))
+    (mapc (lambda (x) (insert x "\n")) banner))
+  (let ((fill-column (frame-width)))
+    (center-region (point-min) (point-max))))
 
 (defvar =emacs-text-banners
   '(("███████╗███╗   ███╗ █████╗  ██████╗███████╗"
@@ -244,15 +253,6 @@ Each element is expected to be the path to a SVG file.")
 
 ;;; Until
 
-(setq gc-cons-threshold 100000000
-      read-process-output-max (* 1024 1024))
-
-(defmacro dbg (form)
-  "Print FORM => RES where res is what FORM evaluate to. Return RES."
-  `(let ((res ,form)) (message "dbg: %s => %s" '(,@form) res) res))
-
-;;; Major modes
-
 (defmacro =add-hook (mode &rest hooks)
   "Attach multiple HOOKS to a MODE hook.
 It is optional to quote MODE."
@@ -266,7 +266,13 @@ It is optional to quote MODE."
 			 ,hook))
 	hooks)))
 
-(=add-hook text-mode-hook
+(defmacro dbg (form)
+  "Print FORM => RES where res is what FORM evaluate to. Return RES."
+  `(let ((res ,form)) (message "dbg: %s => %s" '(,@form) res) res))
+
+;;; Major modes
+
+(=add-hook 'text-mode-hook
   #'flyspell-mode)
 
 (=add-hook prog-mode-hook
@@ -327,13 +333,13 @@ Operate on the region defined by START to END."
 	  (type "PROJ(p)")
 	  (type "KILL(k)")
 	  (type "LOOP(l)"))
-	org-agenda-files (list org-directory)))
+	org-agenda-files (list org-directory)
+	org-src-preserve-indentation t))
 
 ;; Because org is often used as a writing environment, we want it to
 ;; look nice.
 (elpaca org-bullets
   (setq org-hide-emphasis-markers t
-	org-startup-indented t
 	org-pretty-entities t))
 
 ;; This snippet provides variable and fixed pitch fonts to different

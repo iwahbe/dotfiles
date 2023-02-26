@@ -13,24 +13,16 @@
 
 ;;; Code:
 
-(defun =slugify-to-file-name (name)
-  "Transform NAME to a normal and ascetic file name."
-  (when (string-empty-p name)
-    (error "Cannot slugify empty string"))
-  (string-replace
-   "/" "-"
-   (string-replace " " "-" name)))
-
 (defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
   "The directory where a system local cache is stored.")
 
 (defun =cache-subdirectory (domain)
   "A stable directory to cache files from DOMAIN in."
-  (expand-file-name (concat (=slugify-to-file-name domain) "/") =cache-directory))
+  (expand-file-name (concat domain "/") =cache-directory))
 
 (defun =cache-file (file &optional domain)
   "A stable file name for FILE, located in DOMAIN if provided."
-  (expand-file-name (=slugify-to-file-name file)
+  (expand-file-name file
 		    (if domain
 			(let ((s (=cache-subdirectory domain)))
 			  (unless (file-executable-p s)
