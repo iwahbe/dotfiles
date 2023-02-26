@@ -6,6 +6,7 @@
 (setq frame-resize-pixelwise t)
 
 (tool-bar-mode -1)
+(menu-bar-mode -1)
 (setq
  frame-resize-pixelwise t
  ;; We set the font here to work around a bug that hides the echo area
@@ -17,4 +18,4 @@
       '((width . 0.5) (height . 1.0)
 	(top . 0) (left . 1.0)))
 
-  (setq package-enable-at-startup nil)
+(setq package-enable-at-startup nil)

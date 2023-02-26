@@ -27,7 +27,6 @@ It is optional to quote MODE."
 			    `(quote ,mode))
 			 ,hook))
 	hooks)))
-
 #+END_SRC
 
 ==dbg= isn't used within the config, but it proves a helpful pass-through macro for debugging.
@@ -75,6 +74,7 @@ It is important to set graphical elements in =early-init.el=, since otherwise th
 
 #+BEGIN_SRC emacs-lisp :tangle early-init.el
 (tool-bar-mode -1)
+(menu-bar-mode -1)
 (setq
  frame-resize-pixelwise t
  ;; We set the font here to work around a bug that hides the echo area
@@ -96,22 +96,22 @@ We have two complementary strategies for this:
 1. We direct what we can into a hidden =.cache=.
 
 #+BEGIN_SRC emacs-lisp
-  (defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
-    "The directory where a system local cache is stored.")
+(defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
+  "The directory where a system local cache is stored.")
 
-  (defun =cache-subdirectory (domain)
-    "A stable directory to cache files from DOMAIN in."
-    (expand-file-name (concat domain "/") =cache-directory))
+(defun =cache-subdirectory (domain)
+  "A stable directory to cache files from DOMAIN in."
+  (expand-file-name (concat domain "/") =cache-directory))
 
-  (defun =cache-file (file &optional domain)
-    "A stable file name for FILE, located in DOMAIN if provided."
-    (expand-file-name file
-		      (if domain
-			  (let ((s (=cache-subdirectory domain)))
-			    (unless (file-executable-p s)
-			      (mkdir s))
-			    s)
-			=cache-directory)))
+(defun =cache-file (file &optional domain)
+  "A stable file name for FILE, located in DOMAIN if provided."
+  (expand-file-name file
+		    (if domain
+			(let ((s (=cache-subdirectory domain)))
+			  (unless (file-executable-p s)
+			    (mkdir s))
+			  s)
+		      =cache-directory)))
 #+END_SRC
 
 2. We add =.cache= and any un-directed file to =.gitignore=.
@@ -129,15 +129,15 @@ eln-cache
 For the record, this is the block I tried:
 
 #+BEGIN_SRC emacs-lisp :file early-init.el :tangle no
-  (when (fboundp 'startup-redirect-eln-cache)
-    (startup-redirect-eln-cache (=cache-subdirectory "eln-cache")))
+(when (fboundp 'startup-redirect-eln-cache)
+  (startup-redirect-eln-cache (=cache-subdirectory "eln-cache")))
 #+END_SRC
 
 Following good practice, we maintain an =assets= folder, where we store /heavy/ files.
 
 #+BEGIN_SRC emacs-lisp
-  (defvar =assets-directory (expand-file-name "assets" user-emacs-directory)
-    "The directory containing large runtime assets, such as images.")
+(defvar =assets-directory (expand-file-name "assets" user-emacs-directory)
+  "The directory containing large runtime assets, such as images.")
 #+END_SRC
 
 * Package Management
@@ -147,41 +147,41 @@ I use [[https://github.com/progfolio/elpaca][elpaca]] as my package manager for 
 To avoid cluttering up the =.emacs.d= directory, we have =elpaca= cache in it's own directory.
 
 #+BEGIN_SRC elisp
-  (defvar elpaca-directory (=cache-subdirectory "elpaca"))
+(defvar elpaca-directory (=cache-subdirectory "elpaca"))
   #+END_SRC
 
   This is the install script from the elpaca repo:
 
   #+BEGIN_SRC  elisp
-  (defvar elpaca-installer-version 0.1)
-  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
-  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-				:ref nil
-				:files (:defaults (:exclude "extensions"))
-				:build (:not elpaca--activate-package)))
-  (when-let ((repo  (expand-file-name "repos/elpaca/" elpaca-directory))
-	     (build (expand-file-name "elpaca/" elpaca-builds-directory))
-	     (order (cdr elpaca-order))
-	     ((add-to-list 'load-path (if (file-exists-p build) build repo)))
-	     ((not (file-exists-p repo))))
-    (condition-case-unless-debug err
-	(if-let ((buffer (pop-to-buffer-same-window "*elpaca-installer*"))
-		 ((zerop (call-process "git" nil buffer t "clone"
-				       (plist-get order :repo) repo)))
-		 (default-directory repo)
-		 ((zerop (call-process "git" nil buffer t "checkout"
-				       (or (plist-get order :ref) "--"))))
-		 (emacs (concat invocation-directory invocation-name))
-		 ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-				       "--eval" "(byte-recompile-directory \".\" 0 'force)"))))
-	    (progn (require 'elpaca)
-		   (elpaca-generate-autoloads "elpaca" repo)
-		   (kill-buffer buffer))
-	  (error "%s" (with-current-buffer buffer (buffer-string))))
-      ((error) (warn "%s" err) (delete-directory repo 'recursive))))
-  (require 'elpaca-autoloads)
-  (add-hook 'after-init-hook #'elpaca-process-queues)
-  (elpaca `(,@elpaca-order))
+(defvar elpaca-installer-version 0.1)
+(defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+(defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+			      :ref nil
+			      :files (:defaults (:exclude "extensions"))
+			      :build (:not elpaca--activate-package)))
+(when-let ((repo  (expand-file-name "repos/elpaca/" elpaca-directory))
+	   (build (expand-file-name "elpaca/" elpaca-builds-directory))
+	   (order (cdr elpaca-order))
+	   ((add-to-list 'load-path (if (file-exists-p build) build repo)))
+	   ((not (file-exists-p repo))))
+  (condition-case-unless-debug err
+      (if-let ((buffer (pop-to-buffer-same-window "*elpaca-installer*"))
+	       ((zerop (call-process "git" nil buffer t "clone"
+				     (plist-get order :repo) repo)))
+	       (default-directory repo)
+	       ((zerop (call-process "git" nil buffer t "checkout"
+				     (or (plist-get order :ref) "--"))))
+	       (emacs (concat invocation-directory invocation-name))
+	       ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+				     "--eval" "(byte-recompile-directory \".\" 0 'force)"))))
+	  (progn (require 'elpaca)
+		 (elpaca-generate-autoloads "elpaca" repo)
+		 (kill-buffer buffer))
+	(error "%s" (with-current-buffer buffer (buffer-string))))
+    ((error) (warn "%s" err) (delete-directory repo 'recursive))))
+(require 'elpaca-autoloads)
+(add-hook 'after-init-hook #'elpaca-process-queues)
+(elpaca `(,@elpaca-order))
 #+END_SRC
 
 Worth noting: =elpaca= runs asynchronously, and kicks off after =after-init-hook=.
@@ -189,7 +189,7 @@ Worth noting: =elpaca= runs asynchronously, and kicks off after =after-init-hook
 We need to disable =package.el=, Emacs's default package manager. Since =package.el= sets up existing packages before =init.el= runs, we need to do this in =early-init.el=:
 
 #+BEGIN_SRC emacs-lisp :tangle early-init.el
-  (setq package-enable-at-startup nil)
+(setq package-enable-at-startup nil)
 #+END_SRC
 
 * Splash Screen

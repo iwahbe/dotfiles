@@ -23,57 +23,57 @@ Return RES."
 	    (setq gc-cons-threshold 16777216 ; 16mb
 		  gc-cons-percentage 0.1)))
 
-  (defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
-    "The directory where a system local cache is stored.")
+(defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
+  "The directory where a system local cache is stored.")
 
-  (defun =cache-subdirectory (domain)
-    "A stable directory to cache files from DOMAIN in."
-    (expand-file-name (concat domain "/") =cache-directory))
+(defun =cache-subdirectory (domain)
+  "A stable directory to cache files from DOMAIN in."
+  (expand-file-name (concat domain "/") =cache-directory))
 
-  (defun =cache-file (file &optional domain)
-    "A stable file name for FILE, located in DOMAIN if provided."
-    (expand-file-name file
-		      (if domain
-			  (let ((s (=cache-subdirectory domain)))
-			    (unless (file-executable-p s)
-			      (mkdir s))
-			    s)
-			=cache-directory)))
+(defun =cache-file (file &optional domain)
+  "A stable file name for FILE, located in DOMAIN if provided."
+  (expand-file-name file
+		    (if domain
+			(let ((s (=cache-subdirectory domain)))
+			  (unless (file-executable-p s)
+			    (mkdir s))
+			  s)
+		      =cache-directory)))
 
-  (defvar =assets-directory (expand-file-name "assets" user-emacs-directory)
-    "The directory containing large runtime assets, such as images.")
+(defvar =assets-directory (expand-file-name "assets" user-emacs-directory)
+  "The directory containing large runtime assets, such as images.")
 
-  (defvar elpaca-directory (=cache-subdirectory "elpaca"))
+(defvar elpaca-directory (=cache-subdirectory "elpaca"))
 
-  (defvar elpaca-installer-version 0.1)
-  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
-  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-				:ref nil
-				:files (:defaults (:exclude "extensions"))
-				:build (:not elpaca--activate-package)))
-  (when-let ((repo  (expand-file-name "repos/elpaca/" elpaca-directory))
-	     (build (expand-file-name "elpaca/" elpaca-builds-directory))
-	     (order (cdr elpaca-order))
-	     ((add-to-list 'load-path (if (file-exists-p build) build repo)))
-	     ((not (file-exists-p repo))))
-    (condition-case-unless-debug err
-	(if-let ((buffer (pop-to-buffer-same-window "*elpaca-installer*"))
-		 ((zerop (call-process "git" nil buffer t "clone"
-				       (plist-get order :repo) repo)))
-		 (default-directory repo)
-		 ((zerop (call-process "git" nil buffer t "checkout"
-				       (or (plist-get order :ref) "--"))))
-		 (emacs (concat invocation-directory invocation-name))
-		 ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-				       "--eval" "(byte-recompile-directory \".\" 0 'force)"))))
-	    (progn (require 'elpaca)
-		   (elpaca-generate-autoloads "elpaca" repo)
-		   (kill-buffer buffer))
-	  (error "%s" (with-current-buffer buffer (buffer-string))))
-      ((error) (warn "%s" err) (delete-directory repo 'recursive))))
-  (require 'elpaca-autoloads)
-  (add-hook 'after-init-hook #'elpaca-process-queues)
-  (elpaca `(,@elpaca-order))
+(defvar elpaca-installer-version 0.1)
+(defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+(defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+			      :ref nil
+			      :files (:defaults (:exclude "extensions"))
+			      :build (:not elpaca--activate-package)))
+(when-let ((repo  (expand-file-name "repos/elpaca/" elpaca-directory))
+	   (build (expand-file-name "elpaca/" elpaca-builds-directory))
+	   (order (cdr elpaca-order))
+	   ((add-to-list 'load-path (if (file-exists-p build) build repo)))
+	   ((not (file-exists-p repo))))
+  (condition-case-unless-debug err
+      (if-let ((buffer (pop-to-buffer-same-window "*elpaca-installer*"))
+	       ((zerop (call-process "git" nil buffer t "clone"
+				     (plist-get order :repo) repo)))
+	       (default-directory repo)
+	       ((zerop (call-process "git" nil buffer t "checkout"
+				     (or (plist-get order :ref) "--"))))
+	       (emacs (concat invocation-directory invocation-name))
+	       ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+				     "--eval" "(byte-recompile-directory \".\" 0 'force)"))))
+	  (progn (require 'elpaca)
+		 (elpaca-generate-autoloads "elpaca" repo)
+		 (kill-buffer buffer))
+	(error "%s" (with-current-buffer buffer (buffer-string))))
+    ((error) (warn "%s" err) (delete-directory repo 'recursive))))
+(require 'elpaca-autoloads)
+(add-hook 'after-init-hook #'elpaca-process-queues)
+(elpaca `(,@elpaca-order))
 
 (defun display-startup-echo-area-message ()
   "Override the default help message by redefining the called function."
