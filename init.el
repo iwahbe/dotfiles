@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
+(setq lexical-binding t)
+
 (defmacro =add-hook (mode &rest hooks)
   "Attach multiple HOOKS to a MODE hook.
 It is optional to quote MODE."

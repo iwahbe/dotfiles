@@ -12,6 +12,12 @@ All files should use lexical bindings. This makes the code easier to read, and e
 ;;; -*- lexical-binding: t; -*-
 #+END_SRC
 
+Further, we want lexical bindings even when developing interactively. This doesn't do anything when a file is loaded, but it does effect what happens when =eval-last-sexp= is used.
+
+#+BEGIN_SRC emacs-lisp
+(setq lexical-binding t)
+#+END_SRC
+
 I declare a custom helper macro for adding hooks. It simplifies quoting, and allows multiple hooks to be attached in a single /sexp/.
 
 #+BEGIN_SRC emacs-lisp
