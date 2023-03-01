@@ -165,6 +165,10 @@ element is a single line.")
 
 (setq initial-scratch-message nil)
 
+(fset #'yes-or-no-p #'y-or-n-p)
+
+(setq ring-bell-function #'ignore)
+
 (defun =load-theme (theme)
   "Load THEME without asking for permission."
   (load-theme (pcase theme
@@ -204,6 +208,8 @@ element is a single line.")
 
   (ws-butler-global-mode))
 
+(setq-default fill-column 90)
+
 (setq save-place-file (=cache-file "places"))
 (save-place-mode +1)
 
@@ -212,28 +218,46 @@ element is a single line.")
 
 (setq backup-directory-alist `(("." . ,(=cache-subdirectory "backup"))))
 
-(setq project-list-file (=cache-file "projects")
+(setq project-list-file (=cache-file "projects"))
 
-      project-switch-commands '((project-find-file "Find file" "f")
-				(consult-find "`find` file" "C-f")
-				(consult-ripgrep "Find regexp" "g")
-				(magit "Git" "v")
-				(vterm "Shell" "t")))
+(defun =project-set-switch-commands (pallet)
+  "Set `project-switch-commands'.
+
+This function alters the commands passed in via PALLET to make
+them aware of the new project."
+  (setq project-switch-commands
+	(mapcar
+	 (lambda (x) (cons
+		      (lambda ()
+			(interactive)
+			(let ((default-directory
+			       (or project-current-directory-override
+				   default-directory)))
+			  (funcall-interactively (car x))))
+		      (cdr x)))
+	 pallet)))
+
+(=project-set-switch-commands
+      '((project-find-file "Find file" "f")
+	(consult-find "`find` file" "C-f")
+	(consult-ripgrep "Find regexp" "g")
+	(magit "Git" "v")
+	(vterm "Shell" "t")))
 
 (elpaca corfu
 
-  (setq corfu-auto t          ;; Complete when available
-	corfu-auto-delay 0    ;; Without any delay
-	corfu-auto-prefix 1)  ;; Wait only for the first character
+(setq corfu-auto t          ;; Complete when available
+      corfu-auto-delay 0    ;; Without any delay
+      corfu-auto-prefix 1)  ;; Wait only for the first character
 
-  (global-corfu-mode)
+(global-corfu-mode)
 
-  (define-key corfu-map (kbd "RET") nil t)
+(define-key corfu-map (kbd "RET") nil t)
 
-  (dolist (spc '("C-@" "C-SPC"))
-    ;; C-@ works in the terminal, but not in GUI.
-    ;; C-SPC works in GUI, but not in the terminal.
-    (define-key corfu-map (kbd spc) #'corfu-insert)))
+(dolist (spc '("C-@" "C-SPC"))
+  ;; C-@ works in the terminal, but not in GUI.
+  ;; C-SPC works in GUI, but not in the terminal.
+  (define-key corfu-map (kbd spc) #'corfu-insert)))
 
 (unless (display-graphic-p)
   ;; Since we don't need the additional mode on GUI, only download it
@@ -363,7 +387,34 @@ Operate on the region defined by START to END."
   (setq org-roam-directory (expand-file-name "roam" org-directory)
 	org-roam-db-location (=cache-file "roam.db" "org")))
 
-(elpaca vterm)
+(elpaca vterm
+  (defun =advice--vterm (fn &rest args)
+    "Advice for `vterm'.
+  Redirect the `default-directory' of `vterm' to be project aware.
+  Fix the naming of the resulting buffer to be project unique.
+  
+  FN is the original `vterm' function.
+  ARGS are it's arguments."
+    (if-let ((project (project-current)))
+        (let ((default-directory (project-root project))
+  	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
+  	(apply fn args))
+      (apply fn args)))
+  (advice-add #'vterm :around #'=advice--vterm))
+
+(defun =advice--vterm (fn &rest args)
+  "Advice for `vterm'.
+Redirect the `default-directory' of `vterm' to be project aware.
+Fix the naming of the resulting buffer to be project unique.
+
+FN is the original `vterm' function.
+ARGS are it's arguments."
+  (if-let ((project (project-current)))
+      (let ((default-directory (project-root project))
+	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
+	(apply fn args))
+    (apply fn args)))
+(advice-add #'vterm :around #'=advice--vterm)
 
 (setq vterm-environment
       (list (concat "VTERM_DATA="
@@ -373,7 +424,7 @@ Operate on the region defined by START to END."
 (elpaca go-mode)
 
 (=add-hook go-mode-hook
-  #'eglot
+  #'eglot-ensure
   (lambda () (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 
 (elpaca markdown-mode
@@ -386,6 +437,18 @@ Operate on the region defined by START to END."
   (autoload 'gfm-mode "markdown-mode"
     "Major mode for GitHub Flavored Markdown files" t)
   (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+
+(defun =pulumi-follow-schema-link ()
+  "Follow a link in the pulumi schema."
+  (interactive)
+  (unless (derived-mode-p 'jsonian-mode)
+    (user-error "Requires `jsonian-mode'"))
+  (if-let* ((pos (jsonian--string-at-pos))
+            (s (buffer-substring-no-properties (1+ (car pos)) (1- (cdr pos))))
+            (seperator (string-search "/" s 3))
+            (path (concat "[\"" (substring s 2 seperator) "\"]" "[\"" (substring s (1+ seperator)) "\"]")))
+      (jsonian-find path)
+    (user-error "Something went wrong")))
 
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 

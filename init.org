@@ -1,4 +1,4 @@
-#+PROPERTY: header-args :tangle yes
+#+PROPERTY: header-args :tangle yes :noweb no-export
 
 * Intro
 
@@ -324,6 +324,18 @@ I understand what the scratch buffer does, so the explanation is not necessary.
 (setq initial-scratch-message nil)
 #+end_src
 
+I don't need the additional delay of typing "es" or "o". "y" or "n" is sufficient.
+
+#+BEGIN_SRC emacs-lisp
+(fset #'yes-or-no-p #'y-or-n-p)
+#+END_SRC
+
+Text editors should not make sound.
+
+#+BEGIN_SRC emacs-lisp
+(setq ring-bell-function #'ignore)
+#+END_SRC
+
 ** Theme
 
 Emacs uses a concept called a =theme= to control system appearance. Each theme applies a layer of =face= description to the loaded buffer. The ordered list of enabled themes is defined in =custom-enabled-themes=.
@@ -443,6 +455,12 @@ It is enabled everywhere.
   (ws-butler-global-mode))
 #+END_SRC
 
+I use =fill-paragraph= often. It defaults to /70/ characters, which is too conservative for me.
+
+#+BEGIN_SRC emacs-lisp
+(setq-default fill-column 90)
+#+END_SRC
+
 * Session persistence & Backups
 
 By default, Emacs scatters backup and auto-save files over the directory in use, but does not remember useful information such as where I was last I edited the buffer. This needs to be fixed.
@@ -476,17 +494,41 @@ As far as I know, Emacs has two project management solutions: [[https://github.c
 =project.el= caches which projects have been accessed, which needed to be re-mapped into the cache directory.
 
 #+BEGIN_SRC emacs-lisp
-(setq project-list-file (=cache-file "projects")
+(setq project-list-file (=cache-file "projects"))
 #+END_SRC
 
-When a project is entered, =project-switch-commands= is used to determine what dialog is displayed to the user. That needed to change.
+When a project is entered, =project-switch-commands= is used to determine what dialog is displayed to the user.
+
+Before a switch command is executed, I set =default-directory= to the project I just switched to. This enables commands like =magit= and =vterm= to kick off in the new project.
 
 #+BEGIN_SRC emacs-lisp
-      project-switch-commands '((project-find-file "Find file" "f")
-				(consult-find "`find` file" "C-f")
-				(consult-ripgrep "Find regexp" "g")
-				(magit "Git" "v")
-				(vterm "Shell" "t")))
+(defun =project-set-switch-commands (pallet)
+  "Set `project-switch-commands'.
+
+This function alters the commands passed in via PALLET to make
+them aware of the new project."
+  (setq project-switch-commands
+	(mapcar
+	 (lambda (x) (cons
+		      (lambda ()
+			(interactive)
+			(let ((default-directory
+			       (or project-current-directory-override
+				   default-directory)))
+			  (funcall-interactively (car x))))
+		      (cdr x)))
+	 pallet)))
+#+END_SRC
+
+We now define the actual command pallet we want.
+
+#+BEGIN_SRC emacs-lisp
+(=project-set-switch-commands
+      '((project-find-file "Find file" "f")
+	(consult-find "`find` file" "C-f")
+	(consult-ripgrep "Find regexp" "g")
+	(magit "Git" "v")
+	(vterm "Shell" "t")))
 #+END_SRC
 
 * Completion
@@ -504,15 +546,15 @@ For completion at point, there are two main options: [[https://github.com/minad/
 I prefer aggressive completion.
 
 #+BEGIN_SRC emacs-lisp
-  (setq corfu-auto t          ;; Complete when available
-	corfu-auto-delay 0    ;; Without any delay
-	corfu-auto-prefix 1)  ;; Wait only for the first character
+(setq corfu-auto t          ;; Complete when available
+      corfu-auto-delay 0    ;; Without any delay
+      corfu-auto-prefix 1)  ;; Wait only for the first character
 #+END_SRC
 
 I want completion to be enabled everywhere.
 
 #+BEGIN_SRC emacs-lisp
-  (global-corfu-mode)
+(global-corfu-mode)
 #+END_SRC
 
 Finally, I want completion to not interfere with my normal typing. By default, return finalizes a completion. I find this super disruptive, since I often want to type =RET=, even when a completion is prompted. The solution is to unbind =RET= and rebind a less intrusive option. I use control-space.
@@ -520,16 +562,16 @@ Finally, I want completion to not interfere with my normal typing. By default, r
 This unbinds ="RET"= in the map =corfu= uses during completion. The trailing =t= ensures that we are removing this binding, not just setting it to =nil=. This allows fallback to other keymaps (such as the =self-insert-command= in the =global-mode-map=).
 
 #+BEGIN_SRC emacs-lisp
-  (define-key corfu-map (kbd "RET") nil t)
+(define-key corfu-map (kbd "RET") nil t)
 #+END_SRC
 
 I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't seem to be a binding that applies to both the terminal and the GUI, so I apply a separate binding for both.
 
 #+BEGIN_SRC emacs-lisp
-  (dolist (spc '("C-@" "C-SPC"))
-    ;; C-@ works in the terminal, but not in GUI.
-    ;; C-SPC works in GUI, but not in the terminal.
-    (define-key corfu-map (kbd spc) #'corfu-insert)))
+(dolist (spc '("C-@" "C-SPC"))
+  ;; C-@ works in the terminal, but not in GUI.
+  ;; C-SPC works in GUI, but not in the terminal.
+  (define-key corfu-map (kbd spc) #'corfu-insert)))
 #+END_SRC
 
 =corfu= only works on a GUI. When I don't have access to a GUI, I load [[https://codeberg.org/akib/emacs-corfu-terminal][corfu-terminal]] to get the graphics to stay consistent.
@@ -815,8 +857,29 @@ Org-roam is a [[https://en.wikipedia.org/wiki/Zettelkasten][zettelkasten]] based
 There are quite a few different terminal emulators for Emacs, from the built in =term= to the fully Emacs Lisp based shell =eshell=. I prefer [[https://github.com/akermu/emacs-libvterm][vterm]], an Emacs integration of the [[https://launchpad.net/libvterm][libvterm]] C99 library. It acts as a fully function unconstrained terminal, just like =Termnial.app= or [[https://github.com/alacritty/alacritty][Alacritty]].
 
 #+BEGIN_SRC emacs-lisp
-(elpaca vterm)
+(elpaca vterm
+  <<defun-term>>)
 #+END_SRC
+
+=vterm= isn't project aware, but I would prefer that it was. This can be accomplished by advising the =vterm= function.
+
+#+NAME: defun-term
+#+BEGIN_SRC emacs-lisp
+(defun =advice--vterm (fn &rest args)
+  "Advice for `vterm'.
+Redirect the `default-directory' of `vterm' to be project aware.
+Fix the naming of the resulting buffer to be project unique.
+
+FN is the original `vterm' function.
+ARGS are it's arguments."
+  (if-let ((project (project-current)))
+      (let ((default-directory (project-root project))
+	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
+	(apply fn args))
+    (apply fn args)))
+(advice-add #'vterm :around #'=advice--vterm)
+#+END_SRC
+
 
 It is possible to integrate Emacs's =default-directory= with =vterm=, but it requires shell side support. Specifically, the running shell needs to =source= a file that =vterm= includes. We make this easier by projecting that file into =vterm='s environment.
 
@@ -852,7 +915,7 @@ I need a major mode: =go-mode=.
 
 #+BEGIN_SRC emacs-lisp
 (=add-hook go-mode-hook
-  #'eglot
+  #'eglot-ensure
   (lambda () (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 #+END_SRC
 
@@ -879,6 +942,26 @@ Because GitHub is so dominant, I assume that any =README.md= is going in GitHub,
   (autoload 'gfm-mode "markdown-mode"
     "Major mode for GitHub Flavored Markdown files" t)
   (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+#+END_SRC
+
+* Pulumi
+
+I currently work for [[https://www.pulumi.com][Pulumi]], and I define a set of special functions to work specifically with Pulumi specific data formats.
+
+Pulumi defines its providers with a [[https://www.pulumi.com/docs/guides/pulumi-packages/schema/][schema]]. This function follows internal schema links by leveraging =jsonian=.
+
+#+BEGIN_SRC emacs-lisp
+(defun =pulumi-follow-schema-link ()
+  "Follow a link in the pulumi schema."
+  (interactive)
+  (unless (derived-mode-p 'jsonian-mode)
+    (user-error "Requires `jsonian-mode'"))
+  (if-let* ((pos (jsonian--string-at-pos))
+            (s (buffer-substring-no-properties (1+ (car pos)) (1- (cdr pos))))
+            (seperator (string-search "/" s 3))
+            (path (concat "[\"" (substring s 2 seperator) "\"]" "[\"" (substring s (1+ seperator)) "\"]")))
+      (jsonian-find path)
+    (user-error "Something went wrong")))
 #+END_SRC
 
 * Custom framework
