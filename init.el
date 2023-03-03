@@ -418,6 +418,12 @@ ARGS are it's arguments."
     (apply fn args)))
 (advice-add #'vterm :around #'=advice--vterm)
 
+(require 'project)
+(add-to-list 'project-kill-buffer-conditions
+	     '(and
+	       (derived-mode . vterm-mode)
+	       "^\\*vterm<.*>\\*$"))
+
 (setq vterm-environment
       (list (concat "VTERM_DATA="
 		    (expand-file-name "repos/emacs-libvterm/etc/emacs-vterm-zsh.sh"
@@ -439,6 +445,8 @@ ARGS are it's arguments."
   (autoload 'gfm-mode "markdown-mode"
     "Major mode for GitHub Flavored Markdown files" t)
   (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+
+(elpaca yaml-mode)
 
 (defun =pulumi-follow-schema-link ()
   "Follow a link in the pulumi schema."

@@ -886,6 +886,16 @@ ARGS are it's arguments."
 (advice-add #'vterm :around #'=advice--vterm)
 #+END_SRC
 
+We ensure that =vterm= buffers are cleaned up when they are a part of a project by adding them to =project-kill-buffers=.
+
+#+NAME: kill-vterm
+#+BEGIN_SRC emacs-lisp
+(require 'project)
+(add-to-list 'project-kill-buffer-conditions
+	     '(and
+	       (derived-mode . vterm-mode)
+	       "^\\*vterm<.*>\\*$"))
+#+END_SRC
 
 It is possible to integrate Emacs's =default-directory= with =vterm=, but it requires shell side support. Specifically, the running shell needs to =source= a file that =vterm= includes. We make this easier by projecting that file into =vterm='s environment.
 
@@ -948,6 +958,12 @@ Because GitHub is so dominant, I assume that any =README.md= is going in GitHub,
   (autoload 'gfm-mode "markdown-mode"
     "Major mode for GitHub Flavored Markdown files" t)
   (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+#+END_SRC
+
+** YAML
+
+#+BEGIN_SRC emacs-lisp
+(elpaca yaml-mode)
 #+END_SRC
 
 * Pulumi

@@ -8,6 +8,7 @@
 ;;-
 ;; foo
 ;; this also
+;; bizz
 ;;-
 
 ;;; Code:
@@ -23,16 +24,40 @@
       (rich-comments--enable)
     (rich-comments--disable)))
 
+(defvar rich-comments-font-lock-keywords
+  `((rich-comments-match-fence 'font-lock-string-face prepend)
+    (rich-comments-match-body 'font-lock-function-name-face prepend))
+  "The keyword locking for `font-lock-keywords'.")
+
 (defun rich-comments--enable ()
   "Enable `rich-comments-mode'."
   (add-to-list 'font-lock-extend-region-functions
-	       #'rich-comments--font-lock-extend-region))
+	       #'rich-comments--font-lock-extend-region)
+  (font-lock-add-keywords nil rich-comments-font-lock-keywords))
 
 (defun rich-comments--disable ()
   "Disable `rich-comments-mode'."
   (setq font-lock-extend-region-functions
 	(delq #'rich-comments--font-lock-extend-region
-	      font-lock-extend-region-functions)))
+	      font-lock-extend-region-functions))
+  (font-lock-remove-keywords nil rich-comments-font-lock-keywords))
+
+(defun rich-comments-match-fence (bound)
+  "Set `match-data' to describe the first fence before BOUND.
+The search starts from `point'."
+  (let (found origin)
+    (save-excursion
+      (while (and (not found) (< (point) bound)
+		  (re-search-forward "^;;\\(;?\\)-.*" bound t))
+	(setq origin (point)
+	      found (save-match-data (rich-comments--region-bounds)))
+	(goto-char origin)))
+    (when found
+      (goto-char origin)
+      found)))
+
+(defun rich-comments-match-body (bound)
+  (ignore bound))
 
 (defun rich-comments--font-lock-extend-region ()
   "Extend the font lock region to include full pretty comments."
@@ -40,25 +65,26 @@
   ;; See `font-lock-extend-region-functions' for details.
   (eval-when-compile (defvar font-lock-beg) (defvar font-lock-end))
   (save-excursion
-    (let* ((beginning-bounds (rich-comments--region-bounds font-lock-beg))
-	   (start (car-safe beginning-bounds))
-	   (end (cdr-safe beginning-bounds))
-	   changed)
-      (when (< start font-lock-beg)
-	(setq font-lock-beg start
-	      changed t))
-      (if (> end font-lock-end)
-	  ;; `font-lock-end' is part of the already identified region, so that region
-	  ;; should define the end.
-	  (setq font-lock-end end
-		changed t)
-	;; `font-lock-end' is not part of the identified region, so we need to check if it
-	;; is part of another region.
-	(when-let ((end (cdr-safe (rich-comments--region-bounds font-lock-end))))
-	  (when (> end font-lock-end)
+    (save-match-data
+      (let* ((beginning-bounds (rich-comments--region-bounds font-lock-beg))
+	     (start (car-safe beginning-bounds))
+	     (end (cdr-safe beginning-bounds))
+	     changed)
+	(when (< start font-lock-beg)
+	  (setq font-lock-beg start
+		changed t))
+	(if (> end font-lock-end)
+	    ;; `font-lock-end' is part of the already identified region, so that region
+	    ;; should define the end.
 	    (setq font-lock-end end
-		  changed t))))
-      changed)))
+		  changed t)
+	  ;; `font-lock-end' is not part of the identified region, so we need to check if it
+	  ;; is part of another region.
+	  (when-let ((end (cdr-safe (rich-comments--region-bounds font-lock-end))))
+	    (when (> end font-lock-end)
+	      (setq font-lock-end end
+		    changed t))))
+	changed))))
 
 
 (defun rich-comments--region-bounds (&optional point)
@@ -73,32 +99,42 @@ This function is not excursion safe."
     (let ((origin (point)) above-valid above-border below-border)
       ;; The search above is bounded only by the size of the comment, since successive
       ;; fences invalidate the previous fence.
-      (while
-	  (progn
-	    (beginning-of-line 0)
-	    (rich-comments--comment-p))
+      (while (rich-comments--comment-p)
 	(when (rich-comments--border-p t)
 	  ;; We only want to keep track of the location of the nearest fence.
 	  (unless above-border
 	    (setq above-border (point)))
 	  ;; An above fence is only valid if it is not the bottom fence of yet another
 	  ;; fence.
-	  (setq above-valid (not above-valid))))
-      (when above-valid
-	;; We only need to bother searching down if the search up was successful
-	(goto-char origin)
-	(while
-	    (and
-	     (progn
-	       (beginning-of-line 2)
-	       (rich-comments--comment-p))
-	     (not below-border))
-	  (when (rich-comments--border-p t)
-	    (setq below-border
-		  (unless below-border
-		    (point)))))
-	(when below-border
-	  (cons above-border below-border))))))
+	  (setq above-valid (not above-valid)))
+	(beginning-of-line 0))
+      (goto-char origin)
+      (if (and (not above-valid)
+	       above-border
+	       (eq (line-number-at-pos above-border)
+		   (line-number-at-pos origin)))
+	  ;; We are at a fence that is not valid (because is matched with a upper fence).
+	  ;; That means we are at the bottom of a valid block.
+	  (progn
+	    (setq below-border above-border)
+	    (beginning-of-line 0) ; Go up 1 line
+	    (while (not (rich-comments--border-p nil))
+	      (beginning-of-line 0))
+	    (cons (point) below-border))
+	(when above-valid
+	  ;; We only need to bother searching down if the search up was successful
+	  (while
+	      (and
+	       (progn
+		 (beginning-of-line 2)
+		 (rich-comments--comment-p))
+	       (not below-border))
+	    (when (rich-comments--border-p t)
+	      (setq below-border
+		    (unless below-border
+		      (point)))))
+	  (when below-border
+	    (cons above-border below-border)))))))
 
 (defun rich-comments--comment-p ()
   "If point is on a leading 2 ; or 3 ; depth comment."
