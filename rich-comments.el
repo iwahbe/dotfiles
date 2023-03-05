@@ -25,8 +25,8 @@
     (rich-comments--disable)))
 
 (defvar rich-comments-font-lock-keywords
-  `((rich-comments-match-fence 'font-lock-string-face prepend)
-    (rich-comments-match-body 'font-lock-function-name-face prepend))
+  `((rich-comments-match-fence 0 'font-lock-string-face prepend)
+    (rich-comments-match-body 0 'font-lock-function-name-face prepend))
   "The keyword locking for `font-lock-keywords'.")
 
 (defun rich-comments--enable ()
@@ -48,7 +48,7 @@ The search starts from `point'."
   (let (found origin)
     (save-excursion
       (while (and (not found) (< (point) bound)
-		  (re-search-forward "^;;\\(;?\\)-.*" bound t))
+		  (re-search-forward "^;;;?-.*" bound t))
 	(setq origin (point)
 	      found (save-match-data (rich-comments--region-bounds)))
 	(goto-char origin)))
@@ -70,10 +70,10 @@ The search starts from `point'."
 	     (start (car-safe beginning-bounds))
 	     (end (cdr-safe beginning-bounds))
 	     changed)
-	(when (< start font-lock-beg)
+	(when (and start (< start font-lock-beg))
 	  (setq font-lock-beg start
 		changed t))
-	(if (> end font-lock-end)
+	(if (and end (> end font-lock-end))
 	    ;; `font-lock-end' is part of the already identified region, so that region
 	    ;; should define the end.
 	    (setq font-lock-end end
@@ -96,10 +96,11 @@ This function is not excursion safe."
     (goto-char point))
   (when (rich-comments--comment-p)
     ;; We are in a comment, so it is possible we are in a rich-comment region.
-    (let ((origin (point)) above-valid above-border below-border)
+    (let ((origin (point)) above-valid above-border below-border
+	  exit-loop)
       ;; The search above is bounded only by the size of the comment, since successive
       ;; fences invalidate the previous fence.
-      (while (rich-comments--comment-p)
+      (while (and (rich-comments--comment-p) (not exit-loop))
 	(when (rich-comments--border-p t)
 	  ;; We only want to keep track of the location of the nearest fence.
 	  (unless above-border
@@ -107,7 +108,11 @@ This function is not excursion safe."
 	  ;; An above fence is only valid if it is not the bottom fence of yet another
 	  ;; fence.
 	  (setq above-valid (not above-valid)))
-	(beginning-of-line 0))
+	(let ((current-line (line-number-at-pos)))
+	  (beginning-of-line 0)
+	  (when (eq current-line (line-number-at-pos))
+	    ;; We are at the top, so we should stop now
+	    (setq exit-loop t))))
       (goto-char origin)
       (if (and (not above-valid)
 	       above-border

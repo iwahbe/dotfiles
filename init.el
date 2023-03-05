@@ -183,10 +183,10 @@ element is a single line.")
 
 (elpaca spacemacs-theme
 
-  (if (boundp 'ns-system-appearance)
-      (=add-hook ns-system-appearance-change-functions #'=load-theme)
+(if (boundp 'ns-system-appearance)
+    (=add-hook ns-system-appearance-change-functions #'=load-theme)
 
-    (=load-theme 'light)))
+(=load-theme 'light)))
 
 (setq-default cursor-type 'bar)
 (blink-cursor-mode -1)
@@ -208,7 +208,7 @@ element is a single line.")
 
 (elpaca (ws-butler :host github :repo "hlissner/ws-butler")
 
-  (ws-butler-global-mode))
+(ws-butler-global-mode))
 
 (setq-default fill-column 90)
 
@@ -437,14 +437,14 @@ ARGS are it's arguments."
 
 (elpaca markdown-mode
 
-  (autoload 'markdown-mode "markdown-mode"
-    "Major mode for editing Markdown files" t)
-  (add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode))
-  (add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
+(autoload 'markdown-mode "markdown-mode"
+  "Major mode for editing Markdown files" t)
+(add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode))
+(add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
 
-  (autoload 'gfm-mode "markdown-mode"
-    "Major mode for GitHub Flavored Markdown files" t)
-  (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+(autoload 'gfm-mode "markdown-mode"
+  "Major mode for GitHub Flavored Markdown files" t)
+(add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
 
 (elpaca yaml-mode)
 
