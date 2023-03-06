@@ -20,6 +20,17 @@ It is optional to quote MODE."
 Return RES."
   `(let ((res ,form)) (message "dbg: %s => %s" '(,@form) res) res))
 
+(defmacro =one-of (el &rest forms)
+  "Check if EL is one of FORMS.
+The nth form in FORMS is evaluated only if no previous form matched EL.
+Each form in FORMS is compared against EL with `eq'."
+  (let ((name (gensym "el")))
+    `(let ((,name ,el))
+       (or ,@(mapcar
+	      (lambda (form)
+		`(eq ,name ,form))
+	      forms)))))
+
 (add-hook 'elpaca-after-init-hook
 	  (lambda ()
 	    (setq gc-cons-threshold 16777216 ; 16mb
@@ -86,16 +97,22 @@ Return RES."
 	     elpaca-after-init-time
 	     before-init-time))))
 
-(defun =splash-buffer ()
+(defun =splash-buffer (&optional window)
   "The splash screen.
 It is assumed that the splash screen will occupy the whole frame
-when it is created."
-  (if (not (eq (current-buffer) (get-buffer "*scratch*")))
+when it is created.
+WINDOW is passed via `window-size-change-functions'.  It is ignored."
+  (ignore window)
+  (if (not (=one-of (current-buffer)
+	    (get-buffer "*scratch*")
+	    (get-buffer "*Splash Screen*")))
       ;; If the current buffer is not *scratch*, then Emacs was opened
       ;; onto a file, so we should just display that file.
       (current-buffer)
     (with-current-buffer (get-buffer-create "*Splash Screen*")
       (read-only-mode)
+      (make-local-variable 'window-size-change-functions)
+      (add-to-list 'window-size-change-functions #'=splash-buffer)
       (let ((inhibit-read-only t))
 	(unless (eq (buffer-size) 0)
 	  (erase-buffer))
@@ -116,12 +133,17 @@ when it is created."
   "A list of graphical banners to open Emacs with.
 Each element is expected to be the path to a SVG file.")
 
+(defvar =emacs-graphic-banner
+  (nth (random (length =emacs-graphic-banners))
+       =emacs-graphic-banners)
+  "The randomly chosen graphic banner to use for this session.
+This is calculated once, so it doesn't change during redisplay.")
+
 (defun =splash-buffer--graphic ()
   "Display the splash screen with graphics."
   (let* ((img
 	  (create-image
-	   (nth (random (length =emacs-graphic-banners))
-		=emacs-graphic-banners)
+	   =emacs-graphic-banner
 	   nil nil :width (* (/ (frame-pixel-width) 3) 2)))
 	 (img-size (image-size img))
 	 (img-width (round (car img-size)))
@@ -155,9 +177,14 @@ Each element is expected to be the path to a SVG file.")
 Each banner is expected to be a list of text, where each text
 element is a single line.")
 
+(defvar =emacs-text-banner
+  (nth (random (length =emacs-text-banners)) =emacs-text-banners)
+  "The text banner to use for this session.
+This is calculated once so it doesn't change during redisplay")
+
 (defun =splash-buffer--text ()
   "Display the splash screen with only text."
-  (let ((banner (nth (random (length =emacs-text-banners)) =emacs-text-banners))
+  (let ((banner =emacs-text-banner)
 	(empty-line "\n"))
     (dotimes (_ (- (/ (frame-height) 3) (/ (length banner) 2) 2))
       (insert empty-line))
@@ -183,10 +210,10 @@ element is a single line.")
 
 (elpaca spacemacs-theme
 
-(if (boundp 'ns-system-appearance)
-    (=add-hook ns-system-appearance-change-functions #'=load-theme)
+  (if (boundp 'ns-system-appearance)
+      (=add-hook ns-system-appearance-change-functions #'=load-theme)
 
-(=load-theme 'light)))
+    (=load-theme 'light)))
 
 (setq-default cursor-type 'bar)
 (blink-cursor-mode -1)
@@ -208,7 +235,7 @@ element is a single line.")
 
 (elpaca (ws-butler :host github :repo "hlissner/ws-butler")
 
-(ws-butler-global-mode))
+  (ws-butler-global-mode))
 
 (setq-default fill-column 90)
 
@@ -437,14 +464,14 @@ ARGS are it's arguments."
 
 (elpaca markdown-mode
 
-(autoload 'markdown-mode "markdown-mode"
-  "Major mode for editing Markdown files" t)
-(add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode))
-(add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
+  (autoload 'markdown-mode "markdown-mode"
+    "Major mode for editing Markdown files" t)
+  (add-to-list 'auto-mode-alist '("\\.markdown\\'" . markdown-mode))
+  (add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
 
-(autoload 'gfm-mode "markdown-mode"
-  "Major mode for GitHub Flavored Markdown files" t)
-(add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+  (autoload 'gfm-mode "markdown-mode"
+    "Major mode for GitHub Flavored Markdown files" t)
+  (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
 
 (elpaca yaml-mode)
 
