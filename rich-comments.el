@@ -2,13 +2,12 @@
 
 ;;; Commentary:
 
-;; Rich text in code comments.
-
-;;; Foo
 ;;-
-;; foo
-;; this also
-;; bizz
+;; Allow custom faces in fenced comments.
+;;
+;; The origin goal is to allow `variable-pitch' comments to encourage long form explinations of the content of my `init.el'.
+;; A literate config provided excelent readability, but poor writeability.  A pure `emacs-lisp' file gave excelent writeability,
+;; but so-so readability.  Here I'm trying to get the best of both worlds.
 ;;-
 
 ;;; Code:
@@ -22,11 +21,20 @@
 
   (if rich-comments-mode
       (rich-comments--enable)
-    (rich-comments--disable)))
+    (rich-comments--disable))
+  (font-lock-flush))
+
+(defface rich-comments-fence-face
+  '((t . (:inherit font-lock-string-face :extend t)))
+  "The face used for rich-comment's comment fences.")
+
+(defface rich-comments-body-face
+  '((t . (:inherit (font-lock-doc-face variable-pitch) :extend t :height 1.2)))
+  "The face used for rich-comment's comment bodies.")
 
 (defvar rich-comments-font-lock-keywords
-  `((rich-comments-match-fence 0 'font-lock-string-face prepend)
-    (rich-comments-match-body 0 'font-lock-function-name-face prepend))
+  `((rich-comments-match-fence 0 'rich-comments-fence-face t)
+    (rich-comments-match-body 0 'rich-comments-body-face t))
   "The keyword locking for `font-lock-keywords'.")
 
 (defun rich-comments--enable ()
@@ -48,16 +56,38 @@ The search starts from `point'."
   (let (found origin)
     (save-excursion
       (while (and (not found) (< (point) bound)
-		  (re-search-forward "^;;;?-.*" bound t))
+		  (re-search-forward "^;;;?-.*\n" bound t))
 	(setq origin (point)
-	      found (save-match-data (rich-comments--region-bounds)))
+	      found (save-match-data
+		      ;; go back 1, moving before the matched \n
+		      (goto-char (1- (point)))
+		      (rich-comments--region-bounds)))
 	(goto-char origin)))
     (when found
       (goto-char origin)
       found)))
 
 (defun rich-comments-match-body (bound)
-  (ignore bound))
+  "Set `match-data' to describe the body bounded by two fences.
+The search terminates at BOUND."
+  (let ((origin (point)))
+    (if (when-let* ((region (save-excursion (rich-comments-match-fence bound)))
+		    (body-start (progn
+				  (goto-char (car region))
+				  (forward-line)
+				  (point-marker)))
+		    (body-end (progn
+				(goto-char (cdr region))
+				(forward-line -1)
+				(end-of-line)
+				(goto-char (1+ (point)))
+			        (point-marker))))
+	  (when (< origin (marker-position body-end))
+	    (set-match-data (list body-start body-end))
+	    t))
+	t
+      (goto-char origin)
+      nil)))
 
 (defun rich-comments--font-lock-extend-region ()
   "Extend the font lock region to include full pretty comments."
@@ -149,8 +179,7 @@ This function is not excursion safe."
 	       (eq (char-after) ?\ )
 	       (eq (char-after) ?\t)))
     (forward-char))
-  (and (char-after) (char-after (1+ (point)))
-       (eq (char-after) ?\;) (eq (char-after (1+ (point))) ?\;)))
+  (and (char-after) (eq (char-after) ?\;)))
 
 (defun rich-comments--border-p (assume-comment)
   "If point is on a possible rich-comments comment border.
