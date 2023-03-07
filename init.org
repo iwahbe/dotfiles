@@ -857,7 +857,7 @@ I can now safely enable variable pitch mode.
 
 #+BEGIN_SRC emacs-lisp
 (setq org-todo-keywords
-      '((sequence "TODO(t)" "DONE(d)")
+      '((sequence "TODO(t)" "WAIT(w)" "DONE(d)")
 	(type "PROJ(p)")
 	(type "KILL(k)")
 	(type "LOOP(l)")))
@@ -902,7 +902,50 @@ Org-roam is a [[https://en.wikipedia.org/wiki/Zettelkasten][zettelkasten]] based
 #+BEGIN_SRC emacs-lisp
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)
-	org-roam-db-location (=cache-file "roam.db" "org")))
+	org-roam-db-location (=cache-file "roam.db" "org"))
+  ;; `org-roam-node-list' is called before a list of nodes is displayed to the user. We
+  ;; use it as a prompt to turn on database syncing without slowing down startup.
+  (advice-add #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1))))
+#+END_SRC
+*** Utilities
+
+This is a utility function to resolve GH links to their issue name.
+
+#+BEGIN_SRC emacs-lisp
+(defun =org-describe-link ()
+  "Heuristically add a description to the `org-mode' link at point."
+  (interactive)
+  (when-let* ((ctx (org-element-context))
+              (type (org-element-type ctx))
+	      (link (org-element-property :raw-link ctx))
+	      (description (pcase link
+			     ;; This is an https: link to a github issue, so we can use
+			     ;; `gh` to get the issue title and display that as the
+			     ;; description.
+			     ((pred (string-match
+				     "https://github.com/\\([a-zA-Z0-9]+\\)/\\([a-zA-Z0-9]+\\)/issues/\\([0-9]+\\)"))
+			      (message "LINK: '%s'" link)
+			      (with-temp-buffer
+				(unless (equal 0
+					       (call-process
+						(executable-find "gh") nil t nil
+						"issue" "view" (substring link (match-beginning 3) (match-end 3))
+						(concat "--repo="
+							(substring link (match-beginning 1) (match-end 1))
+							"/"
+							(substring link (match-beginning 2) (match-end 2)))
+						"--json=title"))
+				  (user-error "Failed to get title from GH"))
+				(goto-char (point-min))
+				(alist-get 'title (json-parse-buffer :object-type 'alist))))
+			     ;; Unable to describe link, so let the user do it
+			     (_
+			      (message "No option matched to describe the link at point: %s" link)
+			      nil))))
+    (save-excursion
+      (delete-region (org-element-property :begin ctx)
+		     (org-element-property :end ctx))
+      (org-insert-link link link description))))
 #+END_SRC
 
 ** Terminal
