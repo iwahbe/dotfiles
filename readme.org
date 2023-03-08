@@ -1,4 +1,4 @@
-#+PROPERTY: header-args :tangle yes :noweb no-export
+#+PROPERTY: header-args :tangle init.el :noweb no-export
 
 * Getting Started
 
@@ -696,6 +696,7 @@ I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't s
   (setq vertico-cycle t)
   (vertico-mode))
 
+;; Helpful information in the margin of `vertico' completions.
 (elpaca marginalia (marginalia-mode))
 
 (elpaca orderless

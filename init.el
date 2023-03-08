@@ -337,6 +337,7 @@ them aware of the new project."
   (setq vertico-cycle t)
   (vertico-mode))
 
+;; Helpful information in the margin of `vertico' completions.
 (elpaca marginalia (marginalia-mode))
 
 (elpaca orderless
