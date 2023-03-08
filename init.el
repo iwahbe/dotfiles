@@ -1,4 +1,38 @@
-;;; -*- lexical-binding: t; -*-
+;;; init.el --- Tangled from init.org -*- lexical-binding: t; -*-
+
+;;; Commentary:
+
+;; This file was tangled as part of iwahbe's Emacs config.
+
+;;; Code:
+
+(defun =org-babel-elisp-header-footer ()
+  "Add appropriate headers and footers to elisp files."
+  (when (and
+	 (string-prefix-p (expand-file-name user-emacs-directory) (buffer-file-name))
+	 (string-suffix-p ".el" (buffer-file-name)))
+    (let ((feature (string-remove-suffix
+		    ".el" (string-remove-prefix
+			   (expand-file-name user-emacs-directory)
+			   (buffer-file-name)))))
+      ;; Insert the header
+      (goto-char (point-min))
+      (insert ";;; " feature ".el --- Tangled from init.org -*- lexical-binding: t; -*-\n"
+	      "\n"
+	      ";;; Commentary:\n"
+	      "\n"
+	      ";; This file was tangled as part of iwahbe's Emacs config.\n"
+	      "\n"
+	      ";;; Code:\n"
+	      "\n")
+      ;; Then insert the footer
+      (goto-char (point-max))
+      (insert "\n"
+	      "(provide '" feature ")\n"
+	      ";;; " feature ".el ends here\n"))
+    (let (before-save-hook) (save-buffer))))
+
+(add-hook 'org-babel-post-tangle-hook #'=org-babel-elisp-header-footer)
 
 (setq lexical-binding t)
 
@@ -430,8 +464,7 @@ Operate on the region defined by START to END."
 			     ;; `gh` to get the issue title and display that as the
 			     ;; description.
 			     ((pred (string-match
-				     "https://github.com/\\([a-zA-Z0-9]+\\)/\\([a-zA-Z0-9]+\\)/issues/\\([0-9]+\\)"))
-			      (message "LINK: '%s'" link)
+				     "https://github.com/\\([-a-zA-Z0-9]+\\)/\\([-a-zA-Z0-9]+\\)/issues/\\([0-9]+\\)"))
 			      (with-temp-buffer
 				(unless (equal 0
 					       (call-process
@@ -529,3 +562,6 @@ ARGS are it's arguments."
 
 (when (file-exists-p custom-file)
   (load custom-file))
+
+(provide 'init)
+;;; init.el ends here

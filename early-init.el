@@ -1,4 +1,10 @@
-;;; -*- lexical-binding: t; -*-
+;;; early-init.el --- Tangled from init.org -*- lexical-binding: t; -*-
+
+;;; Commentary:
+
+;; This file was tangled as part of iwahbe's Emacs config.
+
+;;; Code:
 
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
@@ -19,3 +25,6 @@
 	(top . 0) (left . 1.0)))
 
 (setq package-enable-at-startup nil)
+
+(provide 'early-init)
+;;; early-init.el ends here
