@@ -42,7 +42,7 @@ We want all =emacs-lisp= files to be tangled with the appropriate headers and fo
 Further, we want lexical bindings even when developing interactively. This doesn't do anything when a file is loaded, but it does effect what happens when =eval-last-sexp= is used.
 
 #+BEGIN_SRC emacs-lisp
-(setq lexical-binding t)
+(setq-default lexical-binding t)
 #+END_SRC
 
 I declare a custom helper macro for adding hooks. It simplifies quoting, and allows multiple hooks to be attached in a single /sexp/.
@@ -87,20 +87,26 @@ Each form in FORMS is compared against EL with `eq'."
 	      forms)))))
 #+END_SRC
 
-This expands a function such as =(==one-of (get-input) (comp1) (comp2) (comp3))= into
+The best way to understand how ==one-of= works is too see what it expands into:
 
-#+BEGIN_SRC emacs-lisp :tangle no
+#+BEGIN_SRC emacs-lisp :tangle no :results pp :wrap example emacs-lisp
+(macroexpand-1
+ `(=one-of (get-input) (comp1) (comp2) (comp3)))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example emacs-lisp
 (let
-    ((el6405
+    ((el39
       (get-input)))
   (or
-   (eq el6405
+   (eq el39
        (comp1))
-   (eq el6405
+   (eq el39
        (comp2))
-   (eq el6405
+   (eq el39
        (comp3))))
-#+END_SRC
+#+end_example
 
 * Performance
 

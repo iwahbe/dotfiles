@@ -35,7 +35,7 @@
 
 (add-hook 'org-babel-post-tangle-hook #'=org-babel-elisp-header-footer)
 
-(setq lexical-binding t)
+(setq-default lexical-binding t)
 
 (defmacro =add-hook (mode &rest hooks)
   "Attach multiple HOOKS to a MODE hook.
