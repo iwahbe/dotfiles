@@ -1,6 +1,21 @@
 #+PROPERTY: header-args :tangle yes :noweb no-export
 
-* Intro
+* Getting Started
+
+** Installation
+
+On mac, I use [[https://github.com/d12frosted/homebrew-emacs-plus][homebrew-emacs-plus]] to install Emacs. This is the command I used to install.
+
+#+BEGIN_SRC sh :tangle no
+brew install emacs-plus@29   \
+     --with-no-frame-refocus \
+     --with-imagemagick      \
+     --with-native-comp      \
+     --with-poll             \
+     --with-memeplex-wide-icon
+#+END_SRC
+
+* Literate Configuration
 
 We want all =emacs-lisp= files to be tangled with the appropriate headers and footers.
 
@@ -742,6 +757,18 @@ Programming languages introduce a new type of error: syntax errors. This is hand
 (=add-hook prog-mode-hook #'flymake-mode)
 #+END_SRC
 
+*** Tree Sitter
+
+Emacs 29 includes built-in support for [[https://tree-sitter.github.io/tree-sitter/][tree-sitter]], under the =treesit= prefix. Paradoxically, they enable some tree sitter modes by default, but don't bundle the appropriate grammars into Emacs. This means that an unconfigured Emacs errors when opening a =.ts= file.
+
+=emacs -Q bad-decision.ts=  fails with
+
+#+BEGIN_QUOTE
+ ■  Warning (treesit): Cannot activate tree-sitter, because language definition\
+ for typescript is unavailable (not-found): (libtree-sitter-typescript.so libtr\
+ee-sitter-typescript.dylib) No such file or directory
+#+END_QUOTE
+
 ** Emacs Lisp
 
 =emacs-lisp-mode= is the major mode used when editing Emacs lisp. Emacs is already pretty good at editing lisps (kind of it's thing). It is pretty stingy on syntax highlighting though, which is especially painful for a heavily dynamic language. I use [[https://github.com/Fanael/highlight-defined][highlight-defined]] to highlight symbols that are known to be defined in the current session.
@@ -1094,7 +1121,7 @@ Because GitHub is so dominant, I assume that any =README.md= is going in GitHub,
 
 I currently work for [[https://www.pulumi.com][Pulumi]], and I define a set of special functions to work specifically with Pulumi specific data formats.
 
-Pulumi defines its providers with a [[https://www.pulumi.com/docs/guides/pulumi-packages/schema/][schema]]. This function follows internal schema links by leveraging =jsonian=.
+Pulumi defines its providers with a [[https://www.pulumi.com/docs/guides/pulumi-packages/schema/][schema]]. This function follows internal schema links by leveraging  [[JSON][jsonian]].
 
 #+BEGIN_SRC emacs-lisp
 (defun =pulumi-follow-schema-link ()
@@ -1108,6 +1135,76 @@ Pulumi defines its providers with a [[https://www.pulumi.com/docs/guides/pulumi-
             (path (concat "[\"" (substring s 2 seperator) "\"]" "[\"" (substring s (1+ seperator)) "\"]")))
       (jsonian-find path)
     (user-error "Something went wrong")))
+#+END_SRC
+
+Pulumi has repos, so many repos. Often, working on a bug in one repository requires linking in several others. These functions make adding go module [[https://go.dev/ref/mod#go-mod-file-replace][replace]] directives to other Pulumi repositories easy.
+
+#+BEGIN_SRC emacs-lisp
+(defun =pulumi-go-src-root ()
+  "The root of the pulumi go src."
+  (expand-file-name
+   "src/github.com/pulumi"
+   (or
+    (getenv "GOPATH")
+    (expand-file-name
+     "go"
+     (expand-file-name
+      user-login-name
+      "/Users" )))))
+
+(defun =pulumi-go-projects ()
+  "A list of go project paths under the pulumi org."
+  (seq-map #'car
+           (seq-filter (lambda (attr)
+                         (and
+                          (cadr attr) ;; A directory
+                          (not (member (car attr) '("." ".." "templates")))))
+                       (directory-files-and-attributes (=pulumi-go-src-root)))))
+
+(defun =pulumi-go-modules (dir depth)
+  "A list of go paths contained in the directory.
+DEPTH specifies how many levels to search through."
+  (when (and dir (>= depth 1) (file-directory-p dir))
+    (let ((root (expand-file-name "go.mod" dir)))
+      (if (file-exists-p root)
+          (with-temp-buffer
+            (insert-file-contents-literally root)
+            (search-forward-regexp "^module \\(.+\\)$")
+            (list
+             dir
+             (buffer-substring
+              (match-beginning 1)
+              (match-end 1))))
+        (flatten-list
+         (seq-filter #'identity
+                     (seq-map
+                      (lambda (x) (=pulumi-go-modules (expand-file-name x dir) (1- depth)))
+                      (seq-filter (lambda (x) (not (member x '("." ".."))))
+                                  (directory-files dir)))))))))
+
+(defun =pulumi-module-path-map ()
+  (let ((m (make-hash-table :test #'equal))
+        (root (=pulumi-go-src-root)))
+    (mapc
+     (lambda (dir)
+       (let* ((p (expand-file-name dir root))
+             (path-and-mods (=pulumi-go-modules p 2)))
+         (while path-and-mods
+           (puthash (cadr path-and-mods) (car path-and-mods) m)
+           (setq path-and-mods (cddr path-and-mods)))))
+     (=pulumi-go-projects))
+    m))
+
+(defun =pulumi-replace (&optional arg)
+  "Insert the appropriate `replace` directive for a pulumi project."
+  (interactive
+   (list (completing-read "Select replace target: "
+                          (=pulumi-module-path-map)
+                          nil t)))
+  (insert "replace " arg " => "
+          (file-relative-name
+           (gethash arg (=pulumi-module-path-map)))
+          "\n"))
 #+END_SRC
 
 * Custom framework

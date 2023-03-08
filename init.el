@@ -559,6 +559,72 @@ ARGS are it's arguments."
       (jsonian-find path)
     (user-error "Something went wrong")))
 
+(defun =pulumi-go-src-root ()
+  "The root of the pulumi go src."
+  (expand-file-name
+   "src/github.com/pulumi"
+   (or
+    (getenv "GOPATH")
+    (expand-file-name
+     "go"
+     (expand-file-name
+      user-login-name
+      "/Users" )))))
+
+(defun =pulumi-go-projects ()
+  "A list of go project paths under the pulumi org."
+  (seq-map #'car
+           (seq-filter (lambda (attr)
+                         (and
+                          (cadr attr) ;; A directory
+                          (not (member (car attr) '("." ".." "templates")))))
+                       (directory-files-and-attributes (=pulumi-go-src-root)))))
+
+(defun =pulumi-go-modules (dir depth)
+  "A list of go paths contained in the directory.
+DEPTH specifies how many levels to search through."
+  (when (and dir (>= depth 1) (file-directory-p dir))
+    (let ((root (expand-file-name "go.mod" dir)))
+      (if (file-exists-p root)
+          (with-temp-buffer
+            (insert-file-contents-literally root)
+            (search-forward-regexp "^module \\(.+\\)$")
+            (list
+             dir
+             (buffer-substring
+              (match-beginning 1)
+              (match-end 1))))
+        (flatten-list
+         (seq-filter #'identity
+                     (seq-map
+                      (lambda (x) (=pulumi-go-modules (expand-file-name x dir) (1- depth)))
+                      (seq-filter (lambda (x) (not (member x '("." ".."))))
+                                  (directory-files dir)))))))))
+
+(defun =pulumi-module-path-map ()
+  (let ((m (make-hash-table :test #'equal))
+        (root (=pulumi-go-src-root)))
+    (mapc
+     (lambda (dir)
+       (let* ((p (expand-file-name dir root))
+              (path-and-mods (=pulumi-go-modules p 2)))
+         (while path-and-mods
+           (puthash (cadr path-and-mods) (car path-and-mods) m)
+           (setq path-and-mods (cddr path-and-mods)))))
+     (=pulumi-go-projects))
+    m))
+
+(defun =pulumi-replace (&optional arg)
+  "Insert the appropriate `replace` directive for a pulumi project."
+  (interactive
+   (list (completing-read "Select replace target: "
+                          (=pulumi-module-path-map)
+                          nil t)))
+  (insert "replace " arg " => "
+          (file-relative-name
+           (gethash arg (=pulumi-module-path-map)))
+          "\n"))
+
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 
 (when (file-exists-p custom-file)
