@@ -33,6 +33,7 @@ We want all =emacs-lisp= files to be tangled with the appropriate headers and fo
       (insert "\n"
 	      "(provide '" feature ")\n"
 	      ";;; " feature ".el ends here\n"))
+    (lisp-indent-region (point-min) (point-max))
     (let (before-save-hook) (save-buffer))))
 
 (add-hook 'org-babel-post-tangle-hook #'=org-babel-elisp-header-footer)

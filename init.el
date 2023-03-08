@@ -30,6 +30,7 @@
       (insert "\n"
 	      "(provide '" feature ")\n"
 	      ";;; " feature ".el ends here\n"))
+    (lisp-indent-region (point-min) (point-max))
     (let (before-save-hook) (save-buffer))))
 
 (add-hook 'org-babel-post-tangle-hook #'=org-babel-elisp-header-footer)
@@ -138,8 +139,8 @@ when it is created.
 WINDOW is passed via `window-size-change-functions'.  It is ignored."
   (ignore window)
   (if (not (=one-of (current-buffer)
-	    (get-buffer "*scratch*")
-	    (get-buffer "*Splash Screen*")))
+		    (get-buffer "*scratch*")
+		    (get-buffer "*Splash Screen*")))
       ;; If the current buffer is not *scratch*, then Emacs was opened
       ;; onto a file, so we should just display that file.
       (current-buffer)
@@ -301,26 +302,26 @@ them aware of the new project."
 	 pallet)))
 
 (=project-set-switch-commands
-      '((project-find-file "Find file" "f")
-	(consult-find "`find` file" "C-f")
-	(consult-ripgrep "Find regexp" "g")
-	(magit "Git" "v")
-	(vterm "Shell" "t")))
+ '((project-find-file "Find file" "f")
+   (consult-find "`find` file" "C-f")
+   (consult-ripgrep "Find regexp" "g")
+   (magit "Git" "v")
+   (vterm "Shell" "t")))
 
 (elpaca corfu
 
-(setq corfu-auto t          ;; Complete when available
-      corfu-auto-delay 0    ;; Without any delay
-      corfu-auto-prefix 1)  ;; Wait only for the first character
+  (setq corfu-auto t          ;; Complete when available
+	corfu-auto-delay 0    ;; Without any delay
+	corfu-auto-prefix 1)  ;; Wait only for the first character
 
-(global-corfu-mode)
+  (global-corfu-mode)
 
-(define-key corfu-map (kbd "RET") nil t)
+  (define-key corfu-map (kbd "RET") nil t)
 
-(dolist (spc '("C-@" "C-SPC"))
-  ;; C-@ works in the terminal, but not in GUI.
-  ;; C-SPC works in GUI, but not in the terminal.
-  (define-key corfu-map (kbd spc) #'corfu-insert)))
+  (dolist (spc '("C-@" "C-SPC"))
+    ;; C-@ works in the terminal, but not in GUI.
+    ;; C-SPC works in GUI, but not in the terminal.
+    (define-key corfu-map (kbd spc) #'corfu-insert)))
 
 (unless (display-graphic-p)
   ;; Since we don't need the additional mode on GUI, only download it
@@ -497,8 +498,8 @@ Operate on the region defined by START to END."
   ARGS are it's arguments."
     (if-let ((project (project-current)))
         (let ((default-directory (project-root project))
-  	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
-  	(apply fn args))
+  	      (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
+  	  (apply fn args))
       (apply fn args)))
   (advice-add #'vterm :around #'=advice--vterm))
 

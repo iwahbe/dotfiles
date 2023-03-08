@@ -21,8 +21,8 @@
 		       (vertical-scroll-bars . nil)
 		       (horizontal-scroll-bars . nil))
  initial-frame-alist
-      '((width . 0.5) (height . 1.0)
-	(top . 0) (left . 1.0)))
+ '((width . 0.5) (height . 1.0)
+   (top . 0) (left . 1.0)))
 
 (setq package-enable-at-startup nil)
 
