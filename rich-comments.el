@@ -6,7 +6,7 @@
 ;; Allow custom faces in fenced comments.
 ;;
 ;; The origin goal is to allow `variable-pitch' comments to encourage long form explinations of the content of my `init.el'.
-;; A literate config provided excelent readability, but poor writeability.  A pure `emacs-lisp' file gave excelent writeability,
+;; A literate config provided excelent readability, but poor writeability.  A pure `emacs-lisp' file gave excellent writeability,
 ;; but so-so readability.  Here I'm trying to get the best of both worlds.
 ;;-
 
@@ -31,6 +31,43 @@
 (defface rich-comments-body-face
   '((t . (:inherit (font-lock-doc-face variable-pitch) :extend t :height 1.2)))
   "The face used for rich-comment's comment bodies.")
+
+;;-
+;; Here we set up custom `rich-comments' highlighting within body blocks.
+;;
+;; TODO We want the following changes:
+;;
+;; - Text between ?` and ?' is highlighted in a fixed width font.
+;;
+;; - If it is a symbol, it is highlighted according to its definition. That means that the
+;;   appearance of `foo' will depend on if `foo' is a constant, variable or function. This
+;;   behavior should mirror how it works in the rest of the buffer.
+;;-
+
+(defmacro rich-comments-defface-code (&rest faces)
+  "Define faces for quoted code with a `rich-comments' block.
+Each element in FACES is expect to be a symbol."
+  `(progn
+     ,@(mapcar
+	(lambda (face)
+	  (let ((new-face (intern (concat "rich-comments-" (symbol-name face) "-face")))
+		(old-face (intern (concat "font-lock-" (symbol-name face) "-face"))))
+	    (unless (facep old-face)
+	      (user-error "Attempting to define equivalent of non-existent face: %s" old-face))
+	    `(defface ,new-face
+	       '((t . '(:inherit (,old-face fixed-pitch) :extend t)))
+	       ,(concat "The `rich-comments' equivalent of `" (symbol-name old-face) "-face'."))))
+	faces)))
+
+(rich-comments-defface-code
+  constant variable-name)
+
+(with-eval-after-load 'flyspell
+  ;; `flyspell' uses faces to determine what should be commented on.  We need to add
+  ;; `rich-comments-body-face' to that list, since it is effectively an extended doc
+  ;; comment.
+  (eval-when-compile (defvar flyspell-prog-text-faces))
+  (push 'rich-comments-body-face flyspell-prog-text-faces))
 
 (defvar rich-comments-font-lock-keywords
   `((rich-comments-match-fence 0 'rich-comments-fence-face t)
@@ -68,22 +105,29 @@ The search starts from `point'."
       found)))
 
 (defun rich-comments-match-body (bound)
-  "Set `match-data' to describe the body bounded by two fences.
+  "Set `match-data' to describe the next line of a body bounded by two fences.
+This intentionally does not match any leading `?;' within the body.
 The search terminates at BOUND."
   (let ((origin (point)))
     (if (when-let* ((region (save-excursion (rich-comments-match-fence bound)))
 		    (body-start (progn
 				  (goto-char (car region))
 				  (forward-line)
-				  (point-marker)))
+				  (point)))
 		    (body-end (progn
 				(goto-char (cdr region))
 				(forward-line -1)
 				(end-of-line)
-				(goto-char (1+ (point)))
-			        (point-marker))))
-	  (when (< origin (marker-position body-end))
-	    (set-match-data (list body-start body-end))
+				(1+ (point)))))
+	  (when (< origin body-end)
+	    (goto-char (max origin body-start))
+	    (while (and (char-after) (eq (char-after) ?\;))
+	      (forward-char))
+	    (set-match-data (list (point-marker)
+				  (progn
+				    (end-of-line)
+				    (goto-char (1+ (point)))
+				    (point-marker))))
 	    t))
 	t
       (goto-char origin)
@@ -172,7 +216,7 @@ This function is not excursion safe."
 	    (cons above-border below-border)))))))
 
 (defun rich-comments--comment-p ()
-  "If point is on a leading 2 ; or 3 ; depth comment."
+  "If point is on a leading ;."
   (beginning-of-line)
   (while (and (char-after)
 	      (or
