@@ -367,6 +367,18 @@ them aware of the new project."
 
 (=add-hook prog-mode-hook #'flymake-mode)
 
+(setq treesit-language-source-alist
+      '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))))
+
+(defvar =treesit-language-cache (=cache-subdirectory "tree-sitter")
+  "The directory to cache compiled tree-sitter language files.")
+
+(add-to-list 'treesit-extra-load-path =treesit-language-cache)
+
+(advice-add #'treesit--install-language-grammar-1 :around
+	    (lambda (fn out-dir &rest args)
+	      (apply fn (or out-dir =treesit-language-cache) args)))
+
 (elpaca highlight-defined
   (setq highlight-defined-face-use-itself t) ;; Use standard faces when highlighting.
   (=add-hook emacs-lisp-mode-hook #'highlight-defined-mode))

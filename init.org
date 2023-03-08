@@ -769,6 +769,26 @@ Emacs 29 includes built-in support for [[https://tree-sitter.github.io/tree-sitt
 ee-sitter-typescript.dylib) No such file or directory
 #+END_QUOTE
 
+We need to define the set of valid language grammars.
+
+#+BEGIN_SRC emacs-lisp
+(setq treesit-language-source-alist
+      '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))))
+#+END_SRC
+
+By default, =treesit= installs grammars in =(expand-file-name "tree-sitter" user-emacs-directory)=. We want to redirect this to a directory in =.cache=.
+
+#+BEGIN_SRC emacs-lisp
+(defvar =treesit-language-cache (=cache-subdirectory "tree-sitter")
+  "The directory to cache compiled tree-sitter language files.")
+
+(add-to-list 'treesit-extra-load-path =treesit-language-cache)
+
+(advice-add #'treesit--install-language-grammar-1 :around
+	    (lambda (fn out-dir &rest args)
+	      (apply fn (or out-dir =treesit-language-cache) args)))
+#+END_SRC
+
 ** Emacs Lisp
 
 =emacs-lisp-mode= is the major mode used when editing Emacs lisp. Emacs is already pretty good at editing lisps (kind of it's thing). It is pretty stingy on syntax highlighting though, which is especially painful for a heavily dynamic language. I use [[https://github.com/Fanael/highlight-defined][highlight-defined]] to highlight symbols that are known to be defined in the current session.
