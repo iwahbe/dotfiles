@@ -151,6 +151,8 @@ The first cell may be a docstring."
 
 (gtq-defun-command gtq-goto
   "Goto the next character pressed."
-  :inner t :pair nil :backward nil)
+  :inner nil :pair nil :backward nil)
+
+(provide 'gtq)
 
 ;;; gtq.el ends here

@@ -1,63 +1,30 @@
-;;; -*- lexical-binding: t; -*-
+;;; early-init.el --- Tangled from init.org -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
-;; early-init.el should be limited to actions that *must* occur early
-;; in the initialization process.
-;;
-;; This includes:
-;; - disabling package.el, Emacs's standard package manager.
-;; - re-routing the eln-cache to its appropriate place.
-;; - disabling the gc during startup.
-;; - setting the initial size of the frame.
+;; This file was tangled as part of iwahbe's Emacs config.
 
 ;;; Code:
 
-(defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
-  "The directory where a system local cache is stored.")
-
-(defun =cache-subdirectory (domain)
-  "A stable directory to cache files from DOMAIN in."
-  (expand-file-name (concat domain "/") =cache-directory))
-
-(defun =cache-file (file &optional domain)
-  "A stable file name for FILE, located in DOMAIN if provided."
-  (expand-file-name file
-		    (if domain
-			(let ((s (=cache-subdirectory domain)))
-			  (unless (file-executable-p s)
-			    (mkdir s))
-			  s)
-		      =cache-directory)))
-
-(setq package-enable-at-startup nil)
-
-(when (fboundp 'startup-redirect-eln-cache)
-  (startup-redirect-eln-cache (=cache-subdirectory "eln-cache")))
-
-;; Disable the GC during start-up
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
-;; Re-enable the GC after elpaca has loaded all its packages
-(add-hook 'elpaca-after-init-hook
-	  (lambda ()
-	    (setq gc-cons-threshold 16777216 ; 16mb
-		  gc-cons-percentage 0.1)))
 
+(setq frame-resize-pixelwise t)
 
-;; Disable graphic elements so they are not displayed and then
-;; reverted.
-(scroll-bar-mode -1)
 (tool-bar-mode -1)
-
+(menu-bar-mode -1)
 (setq
  frame-resize-pixelwise t
  ;; We set the font here to work around a bug that hides the echo area
  ;; when a font is set after the frame loads.
  default-frame-alist '((font . "Fira Code")
-		       (vertical-scroll-bars . nil))
+		       (vertical-scroll-bars . nil)
+		       (horizontal-scroll-bars . nil))
  initial-frame-alist
       '((width . 0.5) (height . 1.0)
 	(top . 0) (left . 1.0)))
 
+(setq package-enable-at-startup nil)
+
+(provide 'early-init)
 ;;; early-init.el ends here
