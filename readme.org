@@ -1,10 +1,46 @@
 #+TITLE: dotfiles
 #+AUTHOR: iwahbe
-#+PROPERTY: header-args :tangle init.el :noweb no-export
+#+PROPERTY: header-args :noweb no-export
+#+PROPERTY: header-args:emacs-lisp :tangle init.el
+#+PROPERTY: header-args:zsh :tangle .zshrc
+#+PROPERTY: header-args:.gitignore :tangle .gitignore
 
-* Getting Started
+* Literate Configuration
 
-** Installation
+Common file types have common headers and footers. [[help:org-babel-tangle][org-babel-tangle]] has support for post-tangle hooks, but doesn't expose a framework for such hooks. We want such a framework.
+
+Org-babel exposes [[help:org-babel-post-tangle-hook][org-babel-post-tangle-hook]]. We can build a macro on top of that to create easy finalize hooks.
+
+#+BEGIN_SRC emacs-lisp
+(defmacro =config-tangle-finalize (&rest body)
+  "Define a function to run after tangling a file in this directory.
+
+The first argument to BODY specifies the condition to run the
+hook.  Available conditions are:
+
+- `:ext': A symbol that defines the extension for the file.
+- `:name': A symbol that specifies the full name of the file.
+"
+  (declare (indent defun))
+  (let* ((f `(buffer-file-name))
+	 (applies
+	 (pcase (car-safe body)
+	   (:ext `(equal (file-name-extension ,f) (symbol-name ',(cadr body))))
+	   (:name `(equal (file-name-nondirectory ,f) (symbol-name ',(cadr body))))
+	   (unknown (error "Unknown option '%s'" unknown)))))
+    `(add-hook 'org-babel-post-tangle-hook
+	       (lambda ()
+		 (when (and
+			(string-prefix-p (expand-file-name user-emacs-directory) (buffer-file-name))
+			,applies)
+		   ,@(cddr body))))))
+#+END_SRC
+
+* Emacs
+
+** Getting Started
+
+*** Installation
 
 On mac, I use [[https://github.com/d12frosted/homebrew-emacs-plus][homebrew-emacs-plus]] to install Emacs. This is the command I used to install.
 
@@ -17,7 +53,7 @@ brew install emacs-plus@29     \
      --with-memeplex-wide-icon
 #+END_SRC
 
-* Literate Configuration
+** Literate Configuration
 
 This is a [[http://www.literateprogramming.com][literate]] [[help:user-emacs-directory][config]] for Emacs. This file is the single source of truth for the contents of =.emacs.d=.
 
@@ -33,34 +69,28 @@ We want all =emacs-lisp= files to be tangled with the appropriate headers and fo
 - Emacs would like each file to declare its end.
 
 #+BEGIN_SRC emacs-lisp
-(defun =org-babel-elisp-header-footer ()
-  "Add appropriate headers and footers to elisp files."
-  (when (and
-	 (string-prefix-p (expand-file-name user-emacs-directory) (buffer-file-name))
-	 (string-suffix-p ".el" (buffer-file-name)))
-    (let ((feature (string-remove-suffix
-		    ".el" (string-remove-prefix
-			   (expand-file-name user-emacs-directory)
-			   (buffer-file-name)))))
-      ;; Insert the header
-      (goto-char (point-min))
-      (insert ";;; " feature ".el --- Tangled from init.org -*- lexical-binding: t; -*-\n"
-	      "\n"
-	      ";;; Commentary:\n"
-	      "\n"
-	      ";; This file was tangled as part of iwahbe's Emacs config.\n"
-	      "\n"
-	      ";;; Code:\n"
-	      "\n")
-      ;; Then insert the footer
-      (goto-char (point-max))
-      (insert "\n"
-	      "(provide '" feature ")\n"
-	      ";;; " feature ".el ends here\n"))
-    (lisp-indent-region (point-min) (point-max))
-    (let (before-save-hook) (save-buffer))))
-
-(add-hook 'org-babel-post-tangle-hook #'=org-babel-elisp-header-footer)
+(=config-tangle-finalize :ext el
+  (let ((feature (string-remove-suffix
+		  ".el" (string-remove-prefix
+			 (expand-file-name user-emacs-directory)
+			 (buffer-file-name)))))
+    ;; Insert the header
+    (goto-char (point-min))
+    (insert ";;; " feature ".el --- Tangled from init.org -*- lexical-binding: t; -*-\n"
+	    "\n"
+	    ";;; Commentary:\n"
+	    "\n"
+	    ";; This file was tangled as part of iwahbe's Emacs config.\n"
+	    "\n"
+	    ";;; Code:\n"
+	    "\n")
+    ;; Then insert the footer
+    (goto-char (point-max))
+    (insert "\n"
+	    "(provide '" feature ")\n"
+	    ";;; " feature ".el ends here\n"))
+  (lisp-indent-region (point-min) (point-max))
+  (let (before-save-hook) (save-buffer)))
 #+END_SRC
 
 Further, we want lexical bindings even when developing interactively. This doesn't do anything when a file is loaded, but it does effect what happens when =eval-last-sexp= is used.
@@ -132,7 +162,7 @@ The best way to understand how ==one-of= works is too see what it expands into:
        (comp3))))
 #+end_example
 
-* Performance
+** Performance
 
 Emacs Lisp is garbage collected. While this is generally fine, I don't need garbage collection runs kicking off during startup. I disable garbage collection during startup.
 
@@ -152,7 +182,7 @@ We don't want to permanently disable garbage collection, so we re-enable garbage
 		  gc-cons-percentage 0.1)))
 #+END_SRC
 
-* Window + Frame Management
+** Window + Frame Management
 
 A quick glossary for those new to Emacs. Because Emacs predates windowed graphics systems, it uses different terminology then the rest of the world.
 
@@ -181,7 +211,7 @@ It is important to set graphical elements in =early-init.el=, since otherwise th
 	(top . 0) (left . 1.0)))
 #+END_SRC
 
-* Clutter Management
+** Clutter Management
 
 We want to be able to cleanly check this file in.
 
@@ -234,19 +264,19 @@ Following good practice, we maintain an =assets= folder, where we store /heavy/ 
   "The directory containing large runtime assets, such as images.")
 #+END_SRC
 
-* Package Management
+** Package Management
 
 I use [[https://github.com/progfolio/elpaca][elpaca]] as my package manager for Emacs. Like all package managers (except built-in =package.el=, it requires a self-install script to initialize itself.
 
 To avoid cluttering up the =.emacs.d= directory, we have =elpaca= cache in it's own directory.
 
-#+BEGIN_SRC elisp
+#+BEGIN_SRC emacs-lisp
 (defvar elpaca-directory (=cache-subdirectory "elpaca"))
   #+END_SRC
 
   This is the install script from the elpaca repo:
 
-  #+BEGIN_SRC  elisp
+#+BEGIN_SRC emacs-lisp
 (defvar elpaca-installer-version 0.1)
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
@@ -286,7 +316,7 @@ We need to disable =package.el=, Emacs's default package manager. Since =package
 (setq package-enable-at-startup nil)
 #+END_SRC
 
-* Splash Screen
+** Splash Screen
 
 Half of customizing Emacs is making the splash screen look fancy.
 
@@ -340,7 +370,7 @@ Emacs uses =initial-buffer-choice= to determine what buffer it should start in.
 (setq initial-buffer-choice #'=splash-buffer)
 #+END_SRC
 
-** Graphics
+*** Graphics
 
 Here we want to insert a random image from our list of graphic banner images. Graphic banner images are stored in the =assets= folder. We define our list of images.
 
@@ -383,7 +413,7 @@ We then define what a graphic splash buffer will be: A centered image 1/3 down t
     (insert-image img nil nil nil t)))
     #+END_SRC
 
-** Text
+*** Text
 
 Text banners are stored inline with in =init.el=. They were generated from [[https://patorjk.com/software/taag/#p=display&f=Graffiti&t=Emacs][patorjk.com/software/taag]].
 
@@ -426,7 +456,7 @@ The display function is similar to the graphic version, aiming to put the text c
     (center-region (point-min) (point-max))))
 #+END_SRC
 
-* UI
+** UI
 
 I understand what the scratch buffer does, so the explanation is not necessary.
 
@@ -446,7 +476,7 @@ Text editors should not make sound.
 (setq ring-bell-function #'ignore)
 #+END_SRC
 
-** Theme
+*** Theme
 
 Emacs uses a concept called a =theme= to control system appearance. Each theme applies a layer of =face= description to the loaded buffer. The ordered list of enabled themes is defined in =custom-enabled-themes=.
 
@@ -483,7 +513,7 @@ When there isn't any system input for the theme, we will just load the ='light= 
     (=load-theme 'light)))
 #+END_SRC
 
-** Cursor
+*** Cursor
 
 I expect the cursor to be static, and I prefer a bar over a block.
 
@@ -492,7 +522,7 @@ I expect the cursor to be static, and I prefer a bar over a block.
 (blink-cursor-mode -1)
 #+END_SRC
 
-* Modeline
+** Modeline
 
 Current customization is basic, and worth revisiting.
 
@@ -503,7 +533,7 @@ I need to know the line and column number.
 (column-number-mode +1)
 #+END_SRC
 
-* Introspection
+** Introspection
 
 Emacs is famously introspectable. This is facilitated by the =describe-*= functions. The built in introspection is excellent, but it can be improved by showing more information about the values variables hold. The main improvement available is showing the source code where the inspected item is defined. This is what [[https://github.com/Wilfred/helpful][Wilfred/helpful]] does.
 
@@ -517,7 +547,7 @@ Emacs is famously introspectable. This is facilitated by the =describe-*= functi
 
 Since we are happy with default bindings here, we just remap the existing binding to the =helpful= variant.
 
-* Native compilation
+** Native compilation
 
 Emacs has support for native compilation of elisp code. This feature leads to a noticeable speedup in performance dependent packages, such as =eglot= and =jsonian=. Emacs compiles elisp code asynchronous in the background when a package is loaded.
 
@@ -527,13 +557,13 @@ We don't want to see compilation errors pop up for existing packages we have, si
 (setq native-comp-async-report-warnings-errors 'silent)
 #+END_SRC
 
-* Movement
+** Movement
 
 Emacs defines a multitude of ways to navigate around, but I often find it lacking in certain respects.
 
-** TODO Windows
+*** TODO Windows
 
-** Jump to character
+*** Jump to character
 
 One thing I miss from =vim= is the ability to easily jump between and around characters. I have written a small package to accomplish this, called /GoTo Quickly/, and I load that now.
 
@@ -549,7 +579,7 @@ It defines =gtq-goto=, which brings up a model interface for quickly navigating 
 
 If the package proves useful, I will expand it and probably add more bindings, but right not it's pretty simple.
 
-* Whitespace
+** Whitespace
 
 Trailing whitespace is generally wrong. However, I need to be careful that I don't have lots of whitespace diffs on shared files. =ws-butler= handles this nicely.
 
@@ -571,7 +601,7 @@ I use =fill-paragraph= often. It defaults to /70/ characters, which is too conse
 (setq-default fill-column 90)
 #+END_SRC
 
-* Session persistence & Backups
+** Session persistence & Backups
 
 By default, Emacs scatters backup and auto-save files over the directory in use, but does not remember useful information such as where I was last I edited the buffer. This needs to be fixed.
 
@@ -597,7 +627,7 @@ The ="."= means that this is the backup location for files in all directories.
 (setq backup-directory-alist `(("." . ,(=cache-subdirectory "backup"))))
 #+END_SRC
 
-* Project Management
+** Project Management
 
 As far as I know, Emacs has two project management solutions: [[https://github.com/bbatsov/projectile][projectile]] and [[https://github.com/emacs-mirror/emacs/blob/master/lisp/progmodes/project.el][project.el]]. Because =project.el= is in-trunk, I have decided to use it. It works out of the box, but I still needed a couple of tweaks.
 
@@ -641,11 +671,11 @@ We now define the actual command pallet we want.
 	(vterm "Shell" "t")))
 #+END_SRC
 
-* Completion
+** Completion
 
 A lot of Emacs customization goes into Emacs, which impressively does nothing out of the box.
 
-** Completion at point
+*** Completion at point
 
 For completion at point, there are two main options: [[https://github.com/minad/corfu][corfu]] and [[https://company-mode.github.io][company]]. =company= is by far the 800 pound gorilla in this fight with a large number of custom backends.  I have decided to use =corfu= instead, since it integrates with Emacs's existing =completion-at-point-functions=.
 
@@ -696,7 +726,7 @@ I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't s
     (corfu-terminal-mode +1)))
 #+END_SRC
 
-** TODO Minibuffer completion
+*** TODO Minibuffer completion
 
 #+BEGIN_SRC emacs-lisp
 ;; A vertical completion framework, applying a nicer UX to default
@@ -713,7 +743,7 @@ I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't s
 	completion-category-overrides '((file (styles basic partial-completion)))))
 #+END_SRC
 
-** Enhanced consulting completion
+*** Enhanced consulting completion
 
 [[https://github.com/minad/consult][consult]] is a utility package that provides a boat load of /improved/ consulting commands. I rebind several existing built-in commands with their =consult= equivalent.
 
@@ -735,11 +765,11 @@ I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't s
   (define-key isearch-mode-map [remap isearch-edit-string] #'consult-isearch-history))
 #+END_SRC
 
-* Major Modes
+** Major Modes
 
 Emacs defines the general behavior of each buffer with a =major-mode= (stored in a variable of the same name). In general, each language defines a major mode, as well as Emacs specific interaction environments like =dired= and =magit=. Major modes support inheritance, with all modes derived from =fundamental-mode=.
 
-** Text Mode
+*** Text Mode
 
 Text mode is the parent mode for unstructured text.
 
@@ -751,7 +781,7 @@ We want spelling support for text all text modes, so we turn on =flyspell-mode= 
   #'visual-line-mode)
 #+END_SRC
 
-** Programming Mode
+*** Programming Mode
 
 =prog-mode= is for writing structured text for a computer to read (programs). All programming language major modes and most data format major modes are ultimately derived from =prog-mode=.
 
@@ -767,7 +797,7 @@ Programming languages introduce a new type of error: syntax errors. This is hand
 (=add-hook prog-mode-hook #'flymake-mode)
 #+END_SRC
 
-*** Tree Sitter
+**** Tree Sitter
 
 Emacs 29 includes built-in support for [[https://tree-sitter.github.io/tree-sitter/][tree-sitter]], under the =treesit= prefix. Paradoxically, they enable some tree sitter modes by default, but don't bundle the appropriate grammars into Emacs. This means that an unconfigured Emacs errors when opening a =.ts= file.
 
@@ -799,7 +829,7 @@ By default, =treesit= installs grammars in =(expand-file-name "tree-sitter" user
 	      (apply fn (or out-dir =treesit-language-cache) args)))
 #+END_SRC
 
-** Emacs Lisp
+*** Emacs Lisp
 
 =emacs-lisp-mode= is the major mode used when editing Emacs lisp. Emacs is already pretty good at editing lisps (kind of it's thing). It is pretty stingy on syntax highlighting though, which is especially painful for a heavily dynamic language. I use [[https://github.com/Fanael/highlight-defined][highlight-defined]] to highlight symbols that are known to be defined in the current session.
 
@@ -811,7 +841,7 @@ By default, =highlight-defined= uses its own set of faces. I don't want to spend
   (=add-hook emacs-lisp-mode-hook #'highlight-defined-mode))
 #+END_SRC
 
-** JSON
+*** JSON
 
 I maintain my own major mode for json: =jsonian=. It has some cool features, but the major win is working well in large buffers.
 
@@ -822,7 +852,7 @@ To avoid recomputing strings vs keys, =jsonian= can use existing syntax highligh
   (setq jsonian-ignore-font-lock (>= emacs-major-version 29)))
 #+END_SRC
 
-** Git
+*** Git
 
 [[https://magit.vc][Magit]] is everyone's favorite git client, and I'm no exception.
 
@@ -861,7 +891,7 @@ Operate on the region defined by START to END."
     (message "Github link to region: %s" (car kill-ring))))
 #+END_SRC
 
-*** Transient
+**** Transient
 
 Magit handles it's lovely UX with a subsidiary package: [[https://github.com/magit/transient][transient]], which caches its history locally. We need to remap this into =.cache= to keep =.emacs.d= clean. We don't need to =require= transient ourselves, since Magit depends on it.
 
@@ -875,7 +905,7 @@ Magit handles it's lovely UX with a subsidiary package: [[https://github.com/mag
  transient-levels-file (expand-file-name "levels.el" =transient-cache-dir))
 #+END_SRC
 
-** Org Mode
+*** Org Mode
 
 [[https://orgmode.org][org-mode]] is a staple of Emacs, providing a todo list, calendar, literate programming environment and much more. =org-mode= comes built-in to Emacs, but I think it's worth opting into a more developed version.
 
@@ -890,7 +920,7 @@ Magit handles it's lovely UX with a subsidiary package: [[https://github.com/mag
       org-id-locations-file (=cache-file "id-locations" "org"))
 #+END_SRC
 
-*** Readability
+**** Readability
 
 =org-mode= is primarily used for reading, so it's worth making it look as nice as possible.
 
@@ -941,7 +971,7 @@ I can now safely enable variable pitch mode.
 (=add-hook org-mode-hook #'variable-pitch-mode)
 #+END_SRC
 
-*** Org as a ToDo App
+**** Org as a ToDo App
 
 =org-mode= defines a =TODO= item as any header that begins with a todo /keyword/.  The keywords are defines as so.
 
@@ -959,7 +989,7 @@ I want to leave a small note every time a =TODO= changes state.
 (setq org-log-done 'note)
 #+END_SRC
 
-*** Org Agenda
+**** Org Agenda
 
 =org-agenda= is a component of =org-mode= that displays =TODO= elements as part of a time view.
 
@@ -975,7 +1005,7 @@ I generally use it to discover what I need to do this week, so I tell it to work
 (setq org-agenda-span 'week)
 #+END_SRC
 
-*** Source Blocks
+**** Source Blocks
 
 Org allows embedded source blocks, framed by =#+BEGIN_SRC= and =#+END_SRC=.
 
@@ -985,7 +1015,7 @@ By default, they are indented, but this is confusing since it doesn't match othe
 (setq org-src-preserve-indentation t)
 #+END_SRC
 
-*** Org Roam
+**** Org Roam
 
 Org-roam is a [[https://en.wikipedia.org/wiki/Zettelkasten][zettelkasten]] based notes system. It is an extension to =org-mode=.
 
@@ -997,7 +1027,7 @@ Org-roam is a [[https://en.wikipedia.org/wiki/Zettelkasten][zettelkasten]] based
   ;; use it as a prompt to turn on database syncing without slowing down startup.
   (advice-add #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1))))
 #+END_SRC
-*** Utilities
+**** Utilities
 
 This is a utility function to resolve GH links to their issue name.
 
@@ -1039,7 +1069,7 @@ TODO Combine ==org-describe-link= with =org-link-make-description-function= to g
       (org-insert-link link link description))))
 #+END_SRC
 
-** Terminal
+*** Terminal
 
 There are quite a few different terminal emulators for Emacs, from the built in =term= to the fully Emacs Lisp based shell =eshell=. I prefer [[https://github.com/akermu/emacs-libvterm][vterm]], an Emacs integration of the [[https://launchpad.net/libvterm][libvterm]] C99 library. It acts as a fully function unconstrained terminal, just like =Termnial.app= or [[https://github.com/alacritty/alacritty][Alacritty]].
 
@@ -1089,7 +1119,7 @@ It is possible to integrate Emacs's =default-directory= with =vterm=, but it req
 
 I then utilize this variable in my =.zshrc= file:
 
-#+BEGIN_SRC zsh :tangle no
+#+BEGIN_SRC zsh
 if [[ "$INSIDE_EMACS" = vterm ]]; then
     src="$VTERM_DATA"
     if [[ -f "$src" ]]; then
@@ -1100,7 +1130,7 @@ if [[ "$INSIDE_EMACS" = vterm ]]; then
 fi
 #+END_SRC
 
-** Go
+*** Go
 
 I need a major mode: =go-mode=.
 
@@ -1116,7 +1146,7 @@ I need a major mode: =go-mode=.
   (lambda () (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 #+END_SRC
 
-** Markdown
+*** Markdown
 
 =markdown-mode= provides Markdown support.
 
@@ -1141,13 +1171,13 @@ Because GitHub is so dominant, I assume that any =README.md= is going in GitHub,
   (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
 #+END_SRC
 
-** YAML
+*** YAML
 
 #+BEGIN_SRC emacs-lisp
 (elpaca yaml-mode)
 #+END_SRC
 
-* Pulumi
+** Pulumi
 
 I currently work for [[https://www.pulumi.com][Pulumi]], and I define a set of special functions to work specifically with Pulumi specific data formats.
 
@@ -1237,7 +1267,7 @@ DEPTH specifies how many levels to search through."
           "\n"))
 #+END_SRC
 
-* Custom framework
+** Custom framework
 
 In general, we want all customizations to occur in =init.org=. Since there is no obvious way to non-destructively disable =custom=, we set it to use an external file: =custom.el=.
 
@@ -1250,4 +1280,27 @@ Customizations aren't loaded by default, so we also need to instruct Emacs to lo
 #+BEGIN_SRC emacs-lisp
 (when (file-exists-p custom-file)
   (load custom-file))
+#+END_SRC
+
+* Zsh
+
+Obligatory =.gitignore= entry.
+
+#+BEGIN_SRC .gitignore
+.zshrc
+#+END_SRC
+
+All =.zsh= files need to begin with a shebang.
+
+#+BEGIN_SRC emacs-lisp
+(=config-tangle-finalize :name .zshrc
+  (goto-char (point-min))
+  (insert "#!/bin/zsh\n\n")
+  (let (before-save-hook) (save-buffer)))
+#+END_SRC
+
+=zsh= has a utility to declare a variable as a list of unique values. This describes =$PATH= perfectly.
+
+#+BEGIN_SRC zsh
+typeset -U path
 #+END_SRC

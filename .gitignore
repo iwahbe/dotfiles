@@ -4,3 +4,5 @@ early-init.el
 .cache
 
 eln-cache
+
+.zshrc
