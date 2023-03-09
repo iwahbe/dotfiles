@@ -7,6 +7,13 @@
 
 * Literate Configuration
 
+We want to be able to treat this file especially, so we need to set its name in a variable.
+
+#+BEGIN_SRC emacs-lisp :var this-file=(buffer-file-name)
+(defvar =literate-config-file this-file
+  "The file that this config was tangled from.")
+#+END_SRC
+
 Common file types have common headers and footers. [[help:org-babel-tangle][org-babel-tangle]] has support for post-tangle hooks, but doesn't expose a framework for such hooks. We want such a framework.
 
 Org-babel exposes [[help:org-babel-post-tangle-hook][org-babel-post-tangle-hook]]. We can build a macro on top of that to create easy finalize hooks.
@@ -38,6 +45,20 @@ hook.  Available conditions are:
 		   ;; babel save
 		   (let ((save-silently t) before-save-hook)
 		     (save-buffer)))))))
+#+END_SRC
+
+
+Referencing and editing our configuration is a common action (for good or for ill). We bind config navigation.
+
+#+BEGIN_SRC emacs-lisp
+(defun =config-heading ()
+  "Jump to a config heading."
+  (interactive)
+  (unless (equal (buffer-file-name) =literate-config-file)
+    (find-file-other-window =literate-config-file))
+  (consult-org-heading))
+
+(global-set-key (kbd "C-c C") #'=config-heading)
 #+END_SRC
 
 * Emacs
@@ -816,7 +837,8 @@ We need to define the set of valid language grammars.
 
 #+BEGIN_SRC emacs-lisp
 (setq treesit-language-source-alist
-      '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))))
+      '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))
+	(tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))))
 #+END_SRC
 
 By default, =treesit= installs grammars in =(expand-file-name "tree-sitter" user-emacs-directory)=. We want to redirect this to a directory in =.cache=.
@@ -939,6 +961,12 @@ Similarly, we can render pretty equations like =(\alpha - \beta) \div \Omega=.
 (setq org-pretty-entities t)
 #+END_SRC
 
+We would prefer that org renders headings as =✿ Foo= then =***✿ Foo=.
+
+#+BEGIN_SRC emacs-lisp
+(setq org-hide-leading-stars t)
+#+END_SRC
+
 I replace stand org bullets with graphical overlays.
 
 #+BEGIN_SRC emacs-lisp
@@ -1030,6 +1058,7 @@ Org-roam is a [[https://en.wikipedia.org/wiki/Zettelkasten][zettelkasten]] based
   ;; use it as a prompt to turn on database syncing without slowing down startup.
   (advice-add #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1))))
 #+END_SRC
+
 **** Utilities
 
 This is a utility function to resolve GH links to their issue name.
@@ -1071,6 +1100,7 @@ TODO Combine ==org-describe-link= with =org-link-make-description-function= to g
 		     (org-element-property :end ctx))
       (org-insert-link link link description))))
 #+END_SRC
+
 
 *** Terminal
 
