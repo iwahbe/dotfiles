@@ -288,6 +288,12 @@ Following good practice, we maintain an =assets= folder, where we store /heavy/ 
   "The directory containing large runtime assets, such as images.")
 #+END_SRC
 
+Part of clutter management is keeping file buffers up to date with the underlying files. For this, we have [[help:auto-revert-mode][auto-revert-mode]].
+
+#+BEGIN_SRC emacs-lisp
+(auto-revert-mode +1)
+#+END_SRC
+
 ** Package Management
 
 I use [[https://github.com/progfolio/elpaca][elpaca]] as my package manager for Emacs. Like all package managers (except built-in =package.el=, it requires a self-install script to initialize itself.
