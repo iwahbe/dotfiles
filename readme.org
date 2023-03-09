@@ -33,7 +33,11 @@ hook.  Available conditions are:
 		 (when (and
 			(string-prefix-p (expand-file-name user-emacs-directory) (buffer-file-name))
 			,applies)
-		   ,@(cddr body))))))
+		   ,@(cddr body)
+		   ;; We need to save the buffer, since this hook runs after the initial
+		   ;; babel save
+		   (let ((save-silently t) before-save-hook)
+		     (save-buffer)))))))
 #+END_SRC
 
 * Emacs
@@ -89,8 +93,7 @@ We want all =emacs-lisp= files to be tangled with the appropriate headers and fo
     (insert "\n"
 	    "(provide '" feature ")\n"
 	    ";;; " feature ".el ends here\n"))
-  (lisp-indent-region (point-min) (point-max))
-  (let (before-save-hook) (save-buffer)))
+  (lisp-indent-region (point-min) (point-max)))
 #+END_SRC
 
 Further, we want lexical bindings even when developing interactively. This doesn't do anything when a file is loaded, but it does effect what happens when =eval-last-sexp= is used.
@@ -1295,8 +1298,7 @@ All =.zsh= files need to begin with a shebang.
 #+BEGIN_SRC emacs-lisp
 (=config-tangle-finalize :name .zshrc
   (goto-char (point-min))
-  (insert "#!/bin/zsh\n\n")
-  (let (before-save-hook) (save-buffer)))
+  (insert "#!/bin/zsh\n\n"))
 #+END_SRC
 
 =zsh= has a utility to declare a variable as a list of unique values. This describes =$PATH= perfectly.
