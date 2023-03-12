@@ -1,5 +1,5 @@
 #+AUTHOR: iwahbe
-#+PROPERTY: header-args :noweb no-export
+#+PROPERTY: header-args :noweb no-export :mkdirp t
 #+PROPERTY: header-args:emacs-lisp :tangle init.el
 #+PROPERTY: header-args:zsh :tangle .zshrc
 #+PROPERTY: header-args:.gitignore :tangle .gitignore
@@ -66,6 +66,69 @@ Referencing and editing our configuration is a common action (for good or for il
   (consult-org-heading))
 
 (global-set-key (kbd "C-c C") #'=config-heading)
+#+END_SRC
+
+** CLI
+#+PROPERTY: header-args:sh :tangle "config"
+We want to provide a script to link generated files into the main directory. Instead of trying to track the files generated during tangling, we provide a simple =sh= script to recursively traverse a directory, adding symlinks as appropriate.
+
+#+BEGIN_SRC sh
+#!/bin/sh
+
+# make_link <src> <dst>
+#
+# Create a link between <src> and <dst>.
+# <src> may be a directory.
+# <dst> will not exist.
+#
+# You can override the command used by setting CONFIG_LINK_CMD.
+make_link () {
+    if [[ "" == "$CONFIG_LINK_CMD" ]]; then
+	ln -s -w $1 $2
+    else
+	$CONFIG_LINK_CMD $1 $2
+    fi
+}
+
+# unmake_link <src> <dst>
+#
+# Remove an existing link from <src> to <dst>.
+#
+# You can override the command used by setting CONFIG_UNLINK_CMD.
+unmake_link() {
+    if [[ "" == "$CONFIG_UNLINK_CMD" ]]; then
+	rm $2
+    else
+	$CONFIG_UNLINK_CMD $1 $2
+    fi
+}
+
+SRC_DIR=$1
+DST_DIR=$2
+
+read -r -d '' HELP <<- EOF
+	config [src] [dst]
+
+	Recursivly link src to dst.
+
+	Files in dst are prioritized over files in src.
+
+	Both src and dst must be directories.
+EOF
+
+if [[ ! -d "$SRC_DIR" ]]; then
+    echo "'$SRC_DIR' is not a directory"
+    echo
+    echo "$HELP"
+    exit 1
+fi
+
+if [[ ! -d "$DST_DIR" ]]; then
+    echo "'$DST_DIR' is not a directory"
+    echo
+    echo "$HELP"
+    exit 1
+fi
 #+END_SRC
 
 * Emacs
