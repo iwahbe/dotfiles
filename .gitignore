@@ -6,3 +6,4 @@ early-init.el
 eln-cache
 
 .zshrc
+.zshenv

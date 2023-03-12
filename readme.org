@@ -1,4 +1,3 @@
-#+TITLE: dotfiles
 #+AUTHOR: iwahbe
 #+PROPERTY: header-args :noweb no-export
 #+PROPERTY: header-args:emacs-lisp :tangle init.el
@@ -23,28 +22,36 @@ Org-babel exposes [[help:org-babel-post-tangle-hook][org-babel-post-tangle-hook]
   "Define a function to run after tangling a file in this directory.
 
 The first argument to BODY specifies the condition to run the
-hook.  Available conditions are:
+hook.  Available patterns are:
 
-- `:ext': A symbol that defines the extension for the file.
-- `:name': A symbol that specifies the full name of the file.
-"
+- (`:ext' EXT): EXT is a symbol that defines the extension for the file.
+- (`:name' NAME): NAME is a symbol that specifies the full name of the file.
+- (`or' PAT1 ... PATN): PAT_I is one of the available patterns."
   (declare (indent defun))
-  (let* ((f `(buffer-file-name))
-	 (applies
-	 (pcase (car-safe body)
-	   (:ext `(equal (file-name-extension ,f) (symbol-name ',(cadr body))))
-	   (:name `(equal (file-name-nondirectory ,f) (symbol-name ',(cadr body))))
-	   (unknown (error "Unknown option '%s'" unknown)))))
+  (let ((f `(buffer-file-name)))
     `(add-hook 'org-babel-post-tangle-hook
 	       (lambda ()
 		 (when (and
-			(string-prefix-p (expand-file-name user-emacs-directory) (buffer-file-name))
-			,applies)
-		   ,@(cddr body)
+			(string-prefix-p (expand-file-name user-emacs-directory) ,f)
+			,(=config--tangle-condition (car body) f))
+		   ,@(cdr body)
 		   ;; We need to save the buffer, since this hook runs after the initial
 		   ;; babel save
 		   (let ((save-silently t) before-save-hook)
 		     (save-buffer)))))))
+#+END_SRC
+
+The bulk of the work is parsing the condition. We need to define a separate function here because the definition is recursive.
+
+#+BEGIN_SRC emacs-lisp
+(defun =config--tangle-condition (condition file-name)
+  "Parse CONDITION into a callable function.
+FILE-NAME evaluates to the file name under consideration."
+  (pcase condition
+    (`(:ext ,ext) `(equal (file-name-extension ,file-name t) (symbol-name ',ext)))
+    (`(:name ,name) `(equal (file-name-nondirectory ,file-name) (symbol-name ',name)))
+    (`(or . ,l) `(or ,@(mapcar (lambda (x) (=config--tangle-condition x file-name)) l)))
+    (other (error "Unknown condition: '%s'" other))))
 #+END_SRC
 
 
@@ -94,7 +101,7 @@ We want all =emacs-lisp= files to be tangled with the appropriate headers and fo
 - Emacs would like each file to declare its end.
 
 #+BEGIN_SRC emacs-lisp
-(=config-tangle-finalize :ext el
+(=config-tangle-finalize (:ext .el)
   (let ((feature (string-remove-suffix
 		  ".el" (string-remove-prefix
 			 (expand-file-name user-emacs-directory)
@@ -1323,22 +1330,142 @@ Customizations aren't loaded by default, so we also need to instruct Emacs to lo
 
 * Zsh
 
+=zsh= has multiple startup files. According to [[https://zsh.sourceforge.io/Intro/intro_3.html][the documentation]], the load order goes like this
+
+|--------------------+----------------------------|
+| Name               | Condition                  |
+|--------------------+----------------------------|
+| $ZDOTDIR/.zshenv   | Always                     |
+| $ZDOTDIR/.zprofile | Login shells only          |
+| $ZDOTDIR/.zshrc    | Interactive shells only    |
+| $ZDOTDIR/.zlogin   | Login shells only          |
+| $ZDOTDIR/.zlogout  | Login shells only, on exit |
+|--------------------+----------------------------|
+
+** Literate Configuration
 Obligatory =.gitignore= entry.
 
 #+BEGIN_SRC .gitignore
 .zshrc
+.zshenv
 #+END_SRC
 
-All =.zsh= files need to begin with a shebang.
+All =zsh= files need to begin with a shebang.
 
 #+BEGIN_SRC emacs-lisp
-(=config-tangle-finalize :name .zshrc
+(=config-tangle-finalize (or (:name .zshrc)
+			     (:name .zshenv)
+			     (:ext .zsh))
   (goto-char (point-min))
   (insert "#!/bin/zsh\n\n"))
 #+END_SRC
 
+Emacs has [[help:sh-mode][sh-mode]], but no =zsh-mode=. Unfortunately, =org-mode= expects a mode called =zsh-mode= when activating [[help:org-edit-special][org-edit-special]]. Since the built-in =zsh-mode= can handle =.zsh= files just fine, we fake it.
+
+#+BEGIN_SRC emacs-lisp
+(defalias 'zsh-mode 'org-mode)
+#+END_SRC
+
+** =$PATH= and the Environment
+
+We want to set =$PATH= in =.zshenv=, and set aliases in =.zshrc=.
+
 =zsh= has a utility to declare a variable as a list of unique values. This describes =$PATH= perfectly.
 
-#+BEGIN_SRC zsh
+#+BEGIN_SRC zsh :tangle .zshenv
 typeset -U path
+#+END_SRC
+
+We now want to set the path to interact with various programs we have installed. To keep the =.zshenv= file clean, we only want to set the path when the associated files exist. For clarity, we define two simple helper functions:
+
+#+BEGIN_SRC zsh :tangle .zshenv
+# exa_exists <executable>
+function exe_exists {
+    type "$1" > /dev/null;
+    return $?;
+}
+
+# add_to_path <path>
+function add_to_path {
+    path=("$1" "$path[@]")
+}
+#+END_SRC
+
+We now use those to set up the path.
+
+#+BEGIN_SRC zsh :tangle .zshenv
+if [[ -f "$HOME/.cargo/env" ]]; then
+    source "$HOME/.cargo/env"
+fi
+
+if exe_exists go; then
+    export GOPATH="$HOME/go"
+    export GOBIN="$GOPATH/bin"
+    add_to_path "$GOBIN"
+fi
+
+if exe_exists dotnet; then
+    add_to_path "$HOME/.dotnet/tools"
+fi
+
+export EDITOR='emacs -nw'
+#+END_SRC
+
+** Aliases
+
+#+BEGIN_SRC zsh
+alias aws-login='aws sso login --profile=dev-sandbox && eval $(aws-sso-creds export -p dev-sandbox)'
+#+END_SRC
+
+#+BEGIN_SRC zsh
+if exe_exists exa; then
+    alias ls='exa -Fl'
+else
+    alias ls='ls -Fl'
+fi
+
+alias cl='clear; ls'
+
+if exe_exists gmake; then
+    alias make=gmake
+fi
+#+END_SRC
+
+** Prompt
+
+I use [[https://starship.rs][starship]] for a useful contextual prompt. Initializing =starship= is easy:
+
+#+BEGIN_SRC zsh
+if exe_exists starship; then
+    eval "$(starship init zsh)"
+fi
+#+END_SRC
+
+=starship= is fully configured from =.config/starship.toml=.
+
+#+BEGIN_SRC toml :tangle .config/starship.toml
+# Don't add a newline at the end
+add_newline = false
+
+[character]
+success_symbol = "[𝛌](bold green)"
+error_symbol = ""
+
+[status]
+disabled = false
+style = "bold red"
+symbol = "𝛌"
+format = "[$symbol\\($status\\)]($style)"
+#+END_SRC
+
+** Syntax Highlighting
+
+#+BEGIN_SRC zsh
+local HIGHLIGHT="$HOME/.cache/zsh-syntax-highlighting"
+if ! [[ -d "$HIGHLIGHT" ]]; then
+    echo "Cloning zsh syntax highlighting into $HIGHLIGHT"
+    mkdir -d "$HOME/.cache"
+    git clone 'https://github.com/zsh-users/zsh-syntax-highlighting.git' "$HIGHLIGHT"
+fi
+source $HIGHLIGHT/zsh-syntax-highlighting.zsh
 #+END_SRC
