@@ -145,33 +145,50 @@ if [[ ! -d "$DST_DIR" ]]; then
     exit 1
 fi
 
-# process <cmd> <path>
-process () {
-    if [[ ! -e "$DST_DIR/$2" ]]; then
+# stand_up <path>
+stand_up () {
+    if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
 	# dst doesn't exist, so link the entry.  This can be either a file or a
 	# directory.
-	"$1" "$SRC_DIR/$2" "$DST_DIR/$2"
-    elif [[ -d "$DST_DIR/$2" ]] && [[ -d "$SRC_DIR/$2" ]]; then
+	make_link "$SRC_DIR/$1" "$DST_DIR/$1"
+    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
 	# The dst directory exists,
-	for entry in $('ls' "$SRC_DIR/$2"); do
-	    if [[ "$2" == "" ]]; then
-		process "$1" "$entry"
+	for entry in $('ls' "$SRC_DIR/$1"); do
+	    if [[ "$1" == "" ]]; then
+		stand_up "$entry"
 	    else
-		process "$1" "$2/$entry"
+		stand_up "$1/$entry"
             fi
 	done
     else
 	# We can't recurse down directories, so we give up
-	skip_link "$SRC_DIR/$2" "$DST_DIR/$2"
+	skip_link "$SRC_DIR/$1" "$DST_DIR/$1"
+    fi
+}
+
+# tear_down <path>
+tear_down () {
+    if [[ ! -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
+	# Its a link to the file in our tree
+	unmake_link "$SRC_DIR/$1" "$DST_DIR/$1b"
+    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
+	# The dst directory exists,
+	for entry in $('ls' "$SRC_DIR/$1"); do
+	    if [[ "$1" == "" ]]; then
+		stand_up "$entry"
+	    else
+		stand_up "$1/$entry"
+            fi
+	done
     fi
 }
 
 case $1 in
     up)
-	process 'make_link' ""
+	stand_up ""
 	;;
     down)
-	process "unmake_link" ""
+	tear_down ""
 	;;
     ,*)
 	echo "Unknown command $1"
@@ -182,7 +199,6 @@ esac
 #+END_SRC
 
 * Emacs
-
 ** Getting Started
 
 *** Installation
@@ -1170,6 +1186,12 @@ By default, they are indented, but this is confusing since it doesn't match othe
 
 #+BEGIN_SRC emacs-lisp
 (setq org-src-preserve-indentation t)
+#+END_SRC
+
+When calling [[help:org-edit-special][org-edit-special]], Emacs defaults to putting the buffer in another frame. Generally, we want the same frame.
+
+#+BEGIN_SRC emacs-lisp
+(setq org-src-window-setup 'current-window)
 #+END_SRC
 
 **** Org Roam
