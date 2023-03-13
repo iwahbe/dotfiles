@@ -69,12 +69,11 @@ Referencing and editing our configuration is a common action (for good or for il
 #+END_SRC
 
 ** CLI
-#+PROPERTY: header-args:sh :tangle "config"
+#+PROPERTY: header-args:sh :tangle "config" :shebang "#!/bin/sh"
+
 We want to provide a script to link generated files into the main directory. Instead of trying to track the files generated during tangling, we provide a simple =sh= script to recursively traverse a directory, adding symlinks as appropriate.
 
 #+BEGIN_SRC sh
-#!/bin/sh
-
 # make_link <src> <dst>
 #
 # Create a link between <src> and <dst>.
@@ -84,6 +83,7 @@ We want to provide a script to link generated files into the main directory. Ins
 # You can override the command used by setting CONFIG_LINK_CMD.
 make_link () {
     if [[ "" == "$CONFIG_LINK_CMD" ]]; then
+	echo "Linking $1 to $2"
 	ln -s -w $1 $2
     else
 	$CONFIG_LINK_CMD $1 $2
@@ -103,11 +103,18 @@ unmake_link() {
     fi
 }
 
-SRC_DIR=$1
-DST_DIR=$2
+# skip_link <src> <dst>
+#
+# Skip linking from <src> to <dst> because <dst> already exists.
+skip_link() {
+    echo "Cannot link $1 to $2 because $2 already exists."
+}
+
+SRC_DIR=$2
+DST_DIR=$3
 
 read -r -d '' HELP <<- EOF
-	config [src] [dst]
+	config [cmd] [src=.] [dst=$HOME]
 
 	Recursivly link src to dst.
 
@@ -115,6 +122,14 @@ read -r -d '' HELP <<- EOF
 
 	Both src and dst must be directories.
 EOF
+
+if [[ "$2" == "" ]]; then
+    SRC_DIR="."
+fi
+
+if [[ "$3" == "" ]]; then
+    DST_DIR="$HOME"
+fi
 
 if [[ ! -d "$SRC_DIR" ]]; then
     echo "'$SRC_DIR' is not a directory"
@@ -129,6 +144,41 @@ if [[ ! -d "$DST_DIR" ]]; then
     echo "$HELP"
     exit 1
 fi
+
+# process <cmd> <path>
+process () {
+    if [[ ! -e "$DST_DIR/$2" ]]; then
+	# dst doesn't exist, so link the entry.  This can be either a file or a
+	# directory.
+	"$1" "$SRC_DIR/$2" "$DST_DIR/$2"
+    elif [[ -d "$DST_DIR/$2" ]] && [[ -d "$SRC_DIR/$2" ]]; then
+	# The dst directory exists,
+	for entry in $('ls' "$SRC_DIR/$2"); do
+	    if [[ "$2" == "" ]]; then
+		process "$1" "$entry"
+	    else
+		process "$1" "$2/$entry"
+            fi
+	done
+    else
+	# We can't recurse down directories, so we give up
+	skip_link "$SRC_DIR/$2" "$DST_DIR/$2"
+    fi
+}
+
+case $1 in
+    up)
+	process 'make_link' ""
+	;;
+    down)
+	process "unmake_link" ""
+	;;
+    ,*)
+	echo "Unknown command $1"
+	echo ""
+	echo "$HELP"
+	;;
+esac
 #+END_SRC
 
 * Emacs
