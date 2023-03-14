@@ -63,7 +63,10 @@ Referencing and editing our configuration is a common action (for good or for il
   (interactive)
   (unless (equal (buffer-file-name) =literate-config-file)
     (find-file-other-window =literate-config-file))
-  (consult-org-heading))
+  (org-overview)
+  (consult-org-heading)
+  (org-reveal)
+  (org-fold-show-subtree))
 
 (global-set-key (kbd "C-c C") #'=config-heading)
 #+END_SRC
@@ -205,7 +208,7 @@ esac
 
 On mac, I use [[https://github.com/d12frosted/homebrew-emacs-plus][homebrew-emacs-plus]] to install Emacs. This is the command I used to install.
 
-#+BEGIN_SRC sh :tangle no
+#+BEGIN_SRC sh :tangle bin/brew.sh
 brew install emacs-plus@29     \
      --with-no-frame-refocus   \
      --with-imagemagick        \
