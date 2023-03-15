@@ -86,7 +86,7 @@ We want to provide a script to link generated files into the main directory. Ins
 # You can override the command used by setting CONFIG_LINK_CMD.
 make_link () {
     if [[ "" == "$CONFIG_LINK_CMD" ]]; then
-	echo "Linking $1 to $2"
+	echo "Linking $1 to $2: done"
 	ln -s -w $1 $2
     else
 	$CONFIG_LINK_CMD $1 $2
@@ -100,6 +100,7 @@ make_link () {
 # You can override the command used by setting CONFIG_UNLINK_CMD.
 unmake_link() {
     if [[ "" == "$CONFIG_UNLINK_CMD" ]]; then
+	echo "Unlinking $1 from $2: done"
 	rm $2
     else
 	$CONFIG_UNLINK_CMD $1 $2
@@ -110,14 +111,11 @@ unmake_link() {
 #
 # Skip linking from <src> to <dst> because <dst> already exists.
 skip_link() {
-    echo "Cannot link $1 to $2 because $2 already exists."
+    echo "skiping linking $1 to $2"
 }
 
-SRC_DIR=$2
-DST_DIR=$3
-
 read -r -d '' HELP <<- EOF
-	config [cmd] [src=.] [dst=$HOME]
+	config [cmd] [src=$PWD] [dst=$HOME]
 
 	Recursivly link src to dst.
 
@@ -126,12 +124,22 @@ read -r -d '' HELP <<- EOF
 	Both src and dst must be directories.
 EOF
 
-if [[ "$2" == "" ]]; then
-    SRC_DIR="."
+SRC_DIR=$2
+DST_DIR=$3
+
+if [[ "$SRC_DIR" == "" ]]; then
+    # If the source directory is empty, apply the default.
+    SRC_DIR="$PWD"
+elif [[ ! "$SRC_DIR" == /* ]]; then
+    # If the source directory doesn't start with a slash, prefix it with the current
+    # directory
+    SRC_DIR="$PWD/$SRC_DIR"
 fi
 
-if [[ "$3" == "" ]]; then
+if [[ "$DST_DIR" == "" ]]; then
     DST_DIR="$HOME"
+elif [[ ! "$DST_DIR" == /* ]]; then
+    DST_DIR="$PWD/$DST_DIR"
 fi
 
 if [[ ! -d "$SRC_DIR" ]]; then
@@ -171,16 +179,16 @@ stand_up () {
 
 # tear_down <path>
 tear_down () {
-    if [[ ! -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
+    if [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
 	# Its a link to the file in our tree
-	unmake_link "$SRC_DIR/$1" "$DST_DIR/$1b"
+	unmake_link "$SRC_DIR/$1" "$DST_DIR/$1"
     elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
 	# The dst directory exists,
 	for entry in $('ls' "$SRC_DIR/$1"); do
 	    if [[ "$1" == "" ]]; then
-		stand_up "$entry"
+		tear_down "$entry"
 	    else
-		stand_up "$1/$entry"
+		tear_down "$1/$entry"
             fi
 	done
     fi
