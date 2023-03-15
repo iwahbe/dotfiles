@@ -32,7 +32,9 @@ hook.  Available patterns are:
     `(add-hook 'org-babel-post-tangle-hook
 	       (lambda ()
 		 (when (and
-			(string-prefix-p (expand-file-name user-emacs-directory) ,f)
+			(string-prefix-p (expand-file-name
+					  (file-name-directory =literate-config-file))
+					 ,f)
 			,(=config--tangle-condition (car body) f))
 		   ,@(cdr body)
 		   ;; We need to save the buffer, since this hook runs after the initial
