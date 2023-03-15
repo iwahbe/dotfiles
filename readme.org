@@ -72,9 +72,11 @@ Referencing and editing our configuration is a common action (for good or for il
 #+END_SRC
 
 ** CLI
-#+PROPERTY: header-args:sh :tangle "config" :shebang "#!/bin/sh"
+#+PROPERTY: header-args:sh :tangle bin/config :shebang "#!/bin/sh"
 
-We want to provide a script to link generated files into the main directory. Instead of trying to track the files generated during tangling, we provide a simple =sh= script to recursively traverse a directory, adding symlinks as appropriate.
+We want to provide a script to link generated files into the main directory. Instead of trying to track the files generated during tangling, we provide a simple =sh= script to recursively traverse a directory, adding symlinks as appropriate. We do this with a script instead of a =emacs-lisp= function to ensure that tangled artifacts can be produced without a fully configured Emacs instance.
+
+We begin by defining our /action/ functions. These are the functions that will actually perform work.
 
 #+BEGIN_SRC sh
 # make_link <src> <dst>
@@ -111,19 +113,29 @@ unmake_link() {
 #
 # Skip linking from <src> to <dst> because <dst> already exists.
 skip_link() {
-    echo "skiping linking $1 to $2"
+    # echo "skiping linking $1 to $2"
+    true # Necessary because empty functions are not allowed in sh scripts.
 }
+#+END_SRC
 
+We then define our =$HELP= variable, using [[https://tldp.org/LDP/abs/html/here-docs.html][heredoc]].
+
+#+BEGIN_SRC sh
 read -r -d '' HELP <<- EOF
 	config [cmd] [src=$PWD] [dst=$HOME]
 
-	Recursivly link src to dst.
+	Recursivly link src to dst. Effert is made to make the minimum number of links.
+	That means that directories are linked if possible, otherwise their content is recursed.
 
 	Files in dst are prioritized over files in src.
 
 	Both src and dst must be directories.
 EOF
+#+END_SRC
 
+Here we translate our CLI arguments =$1= (=[src]=) and =$2= (=[dst]=) into local variables, initialize them to their default values, or make relative paths absolute.
+
+#+BEGIN_SRC sh
 SRC_DIR=$2
 DST_DIR=$3
 
@@ -141,7 +153,11 @@ if [[ "$DST_DIR" == "" ]]; then
 elif [[ ! "$DST_DIR" == /* ]]; then
     DST_DIR="$PWD/$DST_DIR"
 fi
+#+END_SRC
 
+If they were not initialized to valid directories, then the user made a mistake invoking the command. We show help and exit.
+
+#+BEGIN_SRC sh
 if [[ ! -d "$SRC_DIR" ]]; then
     echo "'$SRC_DIR' is not a directory"
     echo
@@ -155,7 +171,17 @@ if [[ ! -d "$DST_DIR" ]]; then
     echo "$HELP"
     exit 1
 fi
+#+END_SRC
 
+=stand_up= implements the recursive linker. The algorithm is simple:
+
+For a directory, check
+- If the destination does not exist, link it and return.
+- If the destination is a directory and the source is a directory, recurse
+- If the destination is already linked to the source, return.
+- Otherwise skip the link and return.
+
+#+BEGIN_SRC sh
 # stand_up <path>
 stand_up () {
     if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
@@ -171,12 +197,22 @@ stand_up () {
 		stand_up "$1/$entry"
             fi
 	done
+    elif [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
+	echo "Linking $DST_DIR/$1: already linked"
     else
 	# We can't recurse down directories, so we give up
 	skip_link "$SRC_DIR/$1" "$DST_DIR/$1"
     fi
 }
+#+END_SRC
 
+=tear_down= implements the algorithm for recursively removing links. The algorithm goes:
+
+For a directory:
+- If the destination is a link to the source, remove the link and return.
+- Otherwise if the source and destination are directories, recurse into the directory.
+
+#+BEGIN_SRC sh
 # tear_down <path>
 tear_down () {
     if [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
@@ -193,7 +229,11 @@ tear_down () {
 	done
     fi
 }
+#+END_SRC
 
+Finally, we have a switch statement that actually runs a usefull command.
+
+#+BEGIN_SRC sh
 case $1 in
     up)
 	stand_up ""
@@ -202,7 +242,7 @@ case $1 in
 	tear_down ""
 	;;
     ,*)
-	echo "Unknown command $1"
+	echo "Unknown command \"$1\""
 	echo ""
 	echo "$HELP"
 	;;
