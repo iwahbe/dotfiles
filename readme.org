@@ -750,8 +750,8 @@ I need to know the line and column number.
 (column-number-mode +1)
 #+END_SRC
 
-** Introspection
-
+** Documentation
+*** Introspection
 Emacs is famously introspectable. This is facilitated by the =describe-*= functions. The built in introspection is excellent, but it can be improved by showing more information about the values variables hold. The main improvement available is showing the source code where the inspected item is defined. This is what [[https://github.com/Wilfred/helpful][Wilfred/helpful]] does.
 
 #+BEGIN_SRC emacs-lisp
@@ -763,6 +763,18 @@ Emacs is famously introspectable. This is facilitated by the =describe-*= functi
 #+END_SRC
 
 Since we are happy with default bindings here, we just remap the existing binding to the =helpful= variant.
+*** Eldoc
+
+Emacs includes the excellent [[help:eldoc-mode][eldoc]], which displays information about the object at point in the echo area.
+
+For larger (or more stable) documentation, Eldoc has [[help:eldoc-doc-buffer][eldoc-doc-buffer]], which can hold unabridged documentation.
+
+By default, both the buffer and echo area are used when the buffer is displayed. This is probably a safe default, but it is not ideal. Ideally, the existence of the doc buffer obviates the need for displaying in the echo area.
+
+#+BEGIN_SRC emacs-lisp
+;; Don't display in the echo area if the doc buffer is visable
+(setq eldoc-echo-area-prefer-doc-buffer t)
+#+END_SRC
 
 ** Native compilation
 
@@ -1047,6 +1059,18 @@ By default, =treesit= installs grammars in =(expand-file-name "tree-sitter" user
 	      (apply fn (or out-dir =treesit-language-cache) args)))
 #+END_SRC
 
+**** LSP
+
+Many major modes augment their functionality with a [[https://microsoft.github.io/language-server-protocol/][LSP Server]] (Language Server Protocol... Server). [[help:eglot][eglot]] is a built in LSP consumer for Emacs. It doesn't require much setup.
+
+=eglot-ensure= needs to be called via each  =major-mode='s =hook=. Because of the blocking nature of =eglot-ensure=, we provide wrapper function that will allow the buffer to display before enabling the LSP server.
+
+#+BEGIN_SRC emacs-lisp
+(defun =lsp-ensure ()
+  "Turn on the mode appropriate LSP mode."
+  (run-with-idle-timer 0 nil #'eglot-ensure))
+#+END_SRC
+
 *** Emacs Lisp
 
 =emacs-lisp-mode= is the major mode used when editing Emacs lisp. Emacs is already pretty good at editing lisps (kind of it's thing). It is pretty stingy on syntax highlighting though, which is especially painful for a heavily dynamic language. I use [[https://github.com/Fanael/highlight-defined][highlight-defined]] to highlight symbols that are known to be defined in the current session.
@@ -1300,7 +1324,6 @@ TODO Combine ==org-describe-link= with =org-link-make-description-function= to g
       (org-insert-link link link description))))
 #+END_SRC
 
-
 *** Terminal
 
 There are quite a few different terminal emulators for Emacs, from the built in =term= to the fully Emacs Lisp based shell =eshell=. I prefer [[https://github.com/akermu/emacs-libvterm][vterm]], an Emacs integration of the [[https://launchpad.net/libvterm][libvterm]] C99 library. It acts as a fully function unconstrained terminal, just like =Termnial.app= or [[https://github.com/alacritty/alacritty][Alacritty]].
@@ -1374,7 +1397,7 @@ I need a major mode: =go-mode=.
 
 #+BEGIN_SRC emacs-lisp
 (=add-hook go-mode-hook
-  #'eglot-ensure
+  #'=lsp-ensure
   (lambda () (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 #+END_SRC
 
