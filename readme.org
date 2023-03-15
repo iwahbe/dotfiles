@@ -1459,6 +1459,21 @@ Because GitHub is so dominant, I assume that any =README.md= is going in GitHub,
 (elpaca yaml-mode)
 #+END_SRC
 
+*** Shell
+
+Emacs comes with a built-in mode for shell scrips: [[help:sh-mode][sh-mode]].
+
+When =sh-mode= is setup, [[help:sh-set-shell][sh-set-shell]] is called as part of determining which shell kind =sh-mode= is serving. Unfortunately, it prints a success message to the buffer. This pollutes the echo area when [[help:org-babel-tangle][org-babel-tangle]] is called.
+
+#+BEGIN_SRC emacs-lisp
+(advice-add #'sh-set-shell :before-while
+	    (lambda (format-string &rest args)
+	      "Silence \"Setting up ...\" and \"Indentation setup for ...\" messages."
+	      (or
+	       (string= "Setting up indent for shell type %s" format-string)
+	       (string= "Indentation setup for shell type %s" format-string))))
+#+END_SRC
+
 ** Pulumi
 
 I currently work for [[https://www.pulumi.com][Pulumi]], and I define a set of special functions to work specifically with Pulumi specific data formats.
@@ -1583,7 +1598,7 @@ Customizations aren't loaded by default, so we also need to instruct Emacs to lo
 Emacs has [[help:sh-mode][sh-mode]], but no =zsh-mode=. Unfortunately, =org-mode= expects a mode called =zsh-mode= when activating [[help:org-edit-special][org-edit-special]]. Since the built-in =zsh-mode= can handle =.zsh= files just fine, we fake it.
 
 #+BEGIN_SRC emacs-lisp
-(defalias 'zsh-mode 'org-mode)
+(defalias 'zsh-mode 'sh-mode)
 #+END_SRC
 
 ** =$PATH= and the Environment
