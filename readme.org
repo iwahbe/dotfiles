@@ -1392,7 +1392,7 @@ We ensure that =vterm= buffers are cleaned up when they are a part of a project 
 
 It is possible to integrate Emacs's =default-directory= with =vterm=, but it requires shell side support. Specifically, the running shell needs to =source= a file that =vterm= includes. We make this easier by projecting that file into =vterm='s environment.
 
-#+BEGIN_SRC emacs-lisp :tangle no
+#+BEGIN_SRC emacs-lisp
 (setq vterm-environment
       (list (concat "VTERM_DATA="
 		    (expand-file-name "repos/emacs-libvterm/etc/emacs-vterm-zsh.sh"
