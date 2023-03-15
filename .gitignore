@@ -1,9 +1,2 @@
-init.el
-early-init.el
-
-.cache
-
-eln-cache
-
-.zshrc
-.zshenv
+bin
+output

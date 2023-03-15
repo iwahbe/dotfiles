@@ -1,8 +1,8 @@
 #+AUTHOR: iwahbe
 #+PROPERTY: header-args :noweb no-export :mkdirp t
-#+PROPERTY: header-args:emacs-lisp :tangle init.el
+#+PROPERTY: header-args:emacs-lisp :tangle .emacs.d/init.el
 #+PROPERTY: header-args:zsh :tangle .zshrc
-#+PROPERTY: header-args:.gitignore :tangle .gitignore
+#+PROPERTY: header-args:zsh :shebang "#!/bin/zsh"
 
 * Literate Configuration
 
@@ -69,6 +69,18 @@ Referencing and editing our configuration is a common action (for good or for il
   (org-fold-show-subtree))
 
 (global-set-key (kbd "C-c C") #'=config-heading)
+#+END_SRC
+
+We don't actually want to tangle this file into its surrounding directory. We want to tangle it into the output directory.
+
+#+BEGIN_SRC emacs-lisp
+(advice-add #'org-babel-effective-tangled-filename :around
+	    (lambda (fn buffer-fn src-lang src-tfile)
+	      (let ((v (funcall fn buffer-fn src-lang src-tfile)))
+		(if (and v (equal buffer-fn "readme.org")
+			 (not (string-prefix-p "bin/" src-tfile)))
+		    (concat "output/" v)
+		  v))))
 #+END_SRC
 
 ** CLI
@@ -190,8 +202,10 @@ stand_up () {
 	make_link "$SRC_DIR/$1" "$DST_DIR/$1"
     elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
 	# The dst directory exists,
-	for entry in $('ls' "$SRC_DIR/$1"); do
-	    if [[ "$1" == "" ]]; then
+	for entry in $('ls' -a "$SRC_DIR/$1"); do
+	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
+		true # do nothing here
+	    elif [[ "$1" == "" ]]; then
 		stand_up "$entry"
 	    else
 		stand_up "$1/$entry"
@@ -220,12 +234,14 @@ tear_down () {
 	unmake_link "$SRC_DIR/$1" "$DST_DIR/$1"
     elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
 	# The dst directory exists,
-	for entry in $('ls' "$SRC_DIR/$1"); do
-	    if [[ "$1" == "" ]]; then
+	for entry in $('ls' -a "$SRC_DIR/$1"); do
+	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
+		true # do nothing here
+	    elif [[ "$1" == "" ]]; then
 		tear_down "$entry"
 	    else
 		tear_down "$1/$entry"
-            fi
+	    fi
 	done
     fi
 }
@@ -268,11 +284,6 @@ brew install emacs-plus@29     \
 ** Literate Configuration
 
 This is a [[http://www.literateprogramming.com][literate]] [[help:user-emacs-directory][config]] for Emacs. This file is the single source of truth for the contents of =.emacs.d=.
-
-#+BEGIN_SRC .gitignore :tangle .gitignore
-init.el
-early-init.el
-#+END_SRC
 
 We want all =emacs-lisp= files to be tangled with the appropriate headers and footers.
 
@@ -379,7 +390,7 @@ Emacs Lisp is garbage collected. While this is generally fine, I don't need garb
 
 It is important that we turn off the GC as early as possible, to save as many cycles as possible.
 
-#+BEGIN_SRC emacs-lisp :tangle early-init.el
+#+BEGIN_SRC emacs-lisp :tangle .emacs.d/early-init.el
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
 #+END_SRC
@@ -401,13 +412,13 @@ In Emacs parlance, the object managed by the OS windowing system is called a *fr
 
 By default, Emacs thinks in terms of text columns and lines. This isn't great when computing frame sizes for graphical purposes. We want to think in pixels.
 
-#+BEGIN_SRC emacs-lisp :tangle early-init.el
+#+BEGIN_SRC emacs-lisp :tangle .emacs.d/early-init.el
 (setq frame-resize-pixelwise t)
 #+END_SRC
 
 It is important to set graphical elements in =early-init.el=, since otherwise they take effect after graphics open and the window viably flickers or resizes.
 
-#+BEGIN_SRC emacs-lisp :tangle early-init.el
+#+BEGIN_SRC emacs-lisp :tangle .emacs.d/early-init.el
 (tool-bar-mode -1)
 (menu-bar-mode -1)
 (setq
@@ -424,11 +435,7 @@ It is important to set graphical elements in =early-init.el=, since otherwise th
 
 ** Clutter Management
 
-We want to be able to cleanly check this file in.
-
-We have two complementary strategies for this:
-
-1. We direct what we can into a hidden =.cache=.
+We want to be able to cleanly check this file in so we direct what we can into a hidden =.cache=.
 
 #+BEGIN_SRC emacs-lisp
 (defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
@@ -449,21 +456,9 @@ We have two complementary strategies for this:
 		      =cache-directory)))
 #+END_SRC
 
-2. We add =.cache= and any un-directed file to =.gitignore=.
+In theory, it is possible to redirect =.eln= files to an arbitrary location using =startup-redirect-eln-cache=, but it hasn't worked for me. For the record, this is the block I tried:
 
-#+BEGIN_SRC .gitignore :tangle .gitignore
-.cache
-#+END_SRC
-
-In theory, it is possible to redirect =.eln= files to an arbitrary location using =startup-redirect-eln-cache=, but it hasn't worked for me.
-
-#+BEGIN_SRC .gitignore  :tangle .gitignore
-eln-cache
-#+END_SRC
-
-For the record, this is the block I tried:
-
-#+BEGIN_SRC emacs-lisp :file early-init.el :tangle no
+#+BEGIN_SRC emacs-lisp :file .emacs.d/early-init.el :tangle no
 (when (fboundp 'startup-redirect-eln-cache)
   (startup-redirect-eln-cache (=cache-subdirectory "eln-cache")))
 #+END_SRC
@@ -529,7 +524,7 @@ Worth noting: =elpaca= runs asynchronously, and kicks off after =after-init-hook
 
 We need to disable =package.el=, Emacs's default package manager. Since =package.el= sets up existing packages before =init.el= runs, we need to do this in =early-init.el=:
 
-#+BEGIN_SRC emacs-lisp :tangle early-init.el
+#+BEGIN_SRC emacs-lisp :tangle .emacs.d/early-init.el
 (setq package-enable-at-startup nil)
 #+END_SRC
 
@@ -693,6 +688,18 @@ Text editors should not make sound.
 (setq ring-bell-function #'ignore)
 #+END_SRC
 
+Emacs disables /dangerous/ commands by default in  interactive contexts. I like to live dangerously (with copious use of version control).
+
+#+BEGIN_SRC emacs-lisp
+(setq disabled-command-function nil)
+#+END_SRC
+
+In general, Emacs should follow symlinks. If it has reason to believe this is a bad idea, it should warn but not halt my workflow.
+
+#+BEGIN_SRC emacs-lisp
+(setq vc-follow-symlinks t)
+#+END_SRC
+
 *** Theme
 
 Emacs uses a concept called a =theme= to control system appearance. Each theme applies a layer of =face= description to the loaded buffer. The ordered list of enabled themes is defined in =custom-enabled-themes=.
@@ -774,6 +781,16 @@ By default, both the buffer and echo area are used when the buffer is displayed.
 #+BEGIN_SRC emacs-lisp
 ;; Don't display in the echo area if the doc buffer is visable
 (setq eldoc-echo-area-prefer-doc-buffer t)
+#+END_SRC
+
+*** Compilation
+
+Emacs includes a built in mode for compilation output: [[help:compilation-mode][compilation-mode]].
+
+We want it to scroll to the first addressable error.
+
+#+BEGIN_SRC emacs-lisp
+(setq compilation-scroll-output 'first-error)
 #+END_SRC
 
 ** Native compilation
@@ -1237,6 +1254,13 @@ I want to leave a small note every time a =TODO= changes state.
 (setq org-log-done 'note)
 #+END_SRC
 
+TODO: Adjust how [[help:org-refile][org-refile]] works to allow refiling into the hierarchy local buffer hierarchy.
+
+#+BEGIN_SRC emacs-lisp
+(setq org-refile-use-outline-path t
+      org-outline-path-complete-in-steps nil)
+#+END_SRC
+
 **** Org Agenda
 
 =org-agenda= is a component of =org-mode= that displays =TODO= elements as part of a time view.
@@ -1330,13 +1354,14 @@ There are quite a few different terminal emulators for Emacs, from the built in 
 
 #+BEGIN_SRC emacs-lisp
 (elpaca vterm
-  <<defun-term>>)
+<<defun-vterm>>
+<<kill-vterm>>)
 #+END_SRC
 
 =vterm= isn't project aware, but I would prefer that it was. This can be accomplished by advising the =vterm= function.
 
-#+NAME: defun-term
-#+BEGIN_SRC emacs-lisp
+#+NAME: defun-vterm
+#+BEGIN_SRC emacs-lisp :tangle no
 (defun =advice--vterm (fn &rest args)
   "Advice for `vterm'.
 Redirect the `default-directory' of `vterm' to be project aware.
@@ -1355,7 +1380,7 @@ ARGS are it's arguments."
 We ensure that =vterm= buffers are cleaned up when they are a part of a project by adding them to =project-kill-buffers=.
 
 #+NAME: kill-vterm
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :tangle no
 (require 'project)
 (add-to-list 'project-kill-buffer-conditions
 	     '(and
@@ -1365,7 +1390,7 @@ We ensure that =vterm= buffers are cleaned up when they are a part of a project 
 
 It is possible to integrate Emacs's =default-directory= with =vterm=, but it requires shell side support. Specifically, the running shell needs to =source= a file that =vterm= includes. We make this easier by projecting that file into =vterm='s environment.
 
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :tangle no
 (setq vterm-environment
       (list (concat "VTERM_DATA="
 		    (expand-file-name "repos/emacs-libvterm/etc/emacs-vterm-zsh.sh"
@@ -1552,22 +1577,6 @@ Customizations aren't loaded by default, so we also need to instruct Emacs to lo
 |--------------------+----------------------------|
 
 ** Literate Configuration
-Obligatory =.gitignore= entry.
-
-#+BEGIN_SRC .gitignore
-.zshrc
-.zshenv
-#+END_SRC
-
-All =zsh= files need to begin with a shebang.
-
-#+BEGIN_SRC emacs-lisp
-(=config-tangle-finalize (or (:name .zshrc)
-			     (:name .zshenv)
-			     (:ext .zsh))
-  (goto-char (point-min))
-  (insert "#!/bin/zsh\n\n"))
-#+END_SRC
 
 Emacs has [[help:sh-mode][sh-mode]], but no =zsh-mode=. Unfortunately, =org-mode= expects a mode called =zsh-mode= when activating [[help:org-edit-special][org-edit-special]]. Since the built-in =zsh-mode= can handle =.zsh= files just fine, we fake it.
 
