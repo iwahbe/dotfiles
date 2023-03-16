@@ -132,11 +132,19 @@ skip_link() {
 }
 #+END_SRC
 
+We define defaults for both =$SRC_DIR= and =$DST_DIR=. We define them separately because we will show these defaults in our help message.
+
+#+BEGIN_SRC sh
+SRC_DEFAULT_DIR="$PWD/output" # This is chosen so running bin/config up "just works"
+
+DST_DEFAULT_DIR="$HOME"
+#+END_SRC
+
 We then define our =$HELP= variable, using [[https://tldp.org/LDP/abs/html/here-docs.html][heredoc]].
 
 #+BEGIN_SRC sh
 read -r -d '' HELP <<- EOF
-	config [cmd] [src=$PWD] [dst=$HOME]
+	config [cmd] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
 
 	Recursivly link src to dst. Effert is made to make the minimum number of links.
 	That means that directories are linked if possible, otherwise their content is recursed.
@@ -155,7 +163,7 @@ DST_DIR=$3
 
 if [[ "$SRC_DIR" == "" ]]; then
     # If the source directory is empty, apply the default.
-    SRC_DIR="$PWD"
+    SRC_DIR="$SRC_DEFAULT_DIR"
 elif [[ ! "$SRC_DIR" == /* ]]; then
     # If the source directory doesn't start with a slash, prefix it with the current
     # directory
@@ -163,9 +171,10 @@ elif [[ ! "$SRC_DIR" == /* ]]; then
 fi
 
 if [[ "$DST_DIR" == "" ]]; then
-    DST_DIR="$HOME"
+    DST_DIR="$DST_DEFAULT_DIR"
 elif [[ ! "$DST_DIR" == /* ]]; then
-    DST_DIR="$PWD/$DST_DIR"
+     # If a relative directory was given, set it relative to the current directory.
+     DST_DIR="$PWD/$DST_DIR"
 fi
 #+END_SRC
 
@@ -249,7 +258,7 @@ tear_down () {
 }
 #+END_SRC
 
-Finally, we have a switch statement that actually runs a usefull command.
+Finally, we have a switch statement that controls the command's execution.
 
 #+BEGIN_SRC sh
 case $1 in
