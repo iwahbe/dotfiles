@@ -1635,7 +1635,15 @@ function add_to_path {
 }
 #+END_SRC
 
-We now use those to set up the path.
+We can now use those to set up the path.
+
+For some reason, when =.zshenv= is run, =/usr/local/bin= is not present on the path.
+
+#+BEGIN_SRC zsh :tangle .zshenv
+if [[ -d "/usr/local/bin" ]]; then
+   add_to_path "/usr/local/bin"
+fi
+#+END_SRC
 
 #+BEGIN_SRC zsh :tangle .zshenv
 if [[ -f "$HOME/.cargo/env" ]]; then
