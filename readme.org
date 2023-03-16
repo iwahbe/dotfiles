@@ -932,6 +932,11 @@ We now define the actual command pallet we want.
 
 A lot of Emacs customization goes into Emacs, which impressively does nothing out of the box.
 
+#+BEGIN_SRC emacs-lisp
+(setq savehist-file (=cache-file "savehist"))
+(savehist-mode +1)
+#+END_SRC
+
 *** Completion at point
 
 For completion at point, there are two main options: [[https://github.com/minad/corfu][corfu]] and [[https://company-mode.github.io][company]]. =company= is by far the 800 pound gorilla in this fight with a large number of custom backends.  I have decided to use =corfu= instead, since it integrates with Emacs's existing =completion-at-point-functions=.
