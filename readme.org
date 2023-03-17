@@ -63,10 +63,8 @@ Referencing and editing our configuration is a common action (for good or for il
 (defun =config-heading ()
   "Jump to a config heading."
   (interactive)
-  (unless (equal (buffer-file-name) =literate-config-file)
-    (find-file-other-window =literate-config-file))
   (org-overview)
-  (consult-org-heading)
+  (consult-org-heading nil `(,=literate-config-file))
   (org-reveal)
   (org-fold-show-subtree))
 
@@ -710,6 +708,12 @@ In general, Emacs should follow symlinks. If it has reason to believe this is a 
 
 #+BEGIN_SRC emacs-lisp
 (setq vc-follow-symlinks t)
+#+END_SRC
+
+Spaces vs tabs is the forever war. I have no stake in this race, except that some environments struggle to correctly display tabs. Fewer struggle with spaces. If this needs to be different for specific major modes, they can override it.
+
+#+BEGIN_SRC emacs-lisp
+(setq-default indent-tabs-mode nil)
 #+END_SRC
 
 *** Theme
@@ -1379,19 +1383,16 @@ There are quite a few different terminal emulators for Emacs, from the built in 
 
 #+NAME: defun-vterm
 #+BEGIN_SRC emacs-lisp :tangle no
-(defun =advice--vterm (fn &rest args)
-  "Advice for `vterm'.
-Redirect the `default-directory' of `vterm' to be project aware.
-Fix the naming of the resulting buffer to be project unique.
-
-FN is the original `vterm' function.
-ARGS are it's arguments."
+(defun =project-vterm (&optional arg)
+  "A project aware invocation of `vterm'.
+ARG is passed to `vterm' without processing."
+  (interactive)
   (if-let ((project (project-current)))
       (let ((default-directory (project-root project))
 	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
-	(apply fn args))
-    (apply fn args)))
-(advice-add #'vterm :around #'=advice--vterm)
+	(vterm arg))
+    (vterm arg)))
+(defalias 'project-shell '=project-vterm)
 #+END_SRC
 
 We ensure that =vterm= buffers are cleaned up when they are a part of a project by adding them to =project-kill-buffers=.
