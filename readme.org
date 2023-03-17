@@ -78,6 +78,7 @@ We don't actually want to tangle this file into its surrounding directory. We wa
 #+BEGIN_SRC emacs-lisp
 (advice-add #'org-babel-effective-tangled-filename :around
 	    (lambda (fn buffer-fn src-lang src-tfile)
+	      "Ensure that all files tangled from readme.org are emmited to the output directory."
 	      (let ((v (funcall fn buffer-fn src-lang src-tfile)))
 		(if (and v (equal buffer-fn "readme.org")
 			 (not (string-prefix-p "bin/" src-tfile)))
@@ -1486,6 +1487,26 @@ When =sh-mode= is setup, [[help:sh-set-shell][sh-set-shell]] is called as part o
 	      (or
 	       (string= "Setting up indent for shell type %s" format-string)
 	       (string= "Indentation setup for shell type %s" format-string))))
+#+END_SRC
+
+*** TypeScript
+
+Emacs 29 has built in support for typescript syntax highlighting with [[help:typescript-ts-mode][typescript-ts-mode]].
+
+As of Emacs =30.0.50=, =typescript-ts-mode.el= contains this line:
+
+#+BEGIN_SRC emacs-lisp
+(require 'treesit)
+(if (treesit-ready-p 'typescript)
+    (add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-ts-mode)))
+#+END_SRC
+
+Unfortunately, it does not work in =typescript-ts-mode.el= because the check is not auto-loaded, so its not loaded until after a function from [[help:featurep][feature]] =typescript-ts-mode= is loaded. By including the above directly in our init file, we get the desired behavior.
+
+For completion and semantic analysis, we use LSP:
+
+#+BEGIN_SRC emacs-lisp
+(=add-hook 'typescript-ts-mode-hook #'=lsp-ensure)
 #+END_SRC
 
 ** Pulumi
