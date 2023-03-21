@@ -1,8 +1,7 @@
 #+AUTHOR: iwahbe
 #+PROPERTY: header-args :noweb no-export :mkdirp t
 #+PROPERTY: header-args:emacs-lisp :tangle .emacs.d/init.el
-#+PROPERTY: header-args:zsh :tangle .zshrc
-#+PROPERTY: header-args:zsh :shebang "#!/bin/zsh"
+#+PROPERTY: header-args:zsh :tangle .zshrc :shebang "#!/bin/zsh"
 
 * Literate Configuration
 
@@ -1387,6 +1386,7 @@ There are quite a few different terminal emulators for Emacs, from the built in 
   "A project aware invocation of `vterm'.
 ARG is passed to `vterm' without processing."
   (interactive)
+  (defvar vterm-buffer-name)
   (if-let ((project (project-current)))
       (let ((default-directory (project-root project))
 	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
@@ -1674,17 +1674,17 @@ fi
 
 #+BEGIN_SRC zsh :tangle .zshenv
 if [[ -f "$HOME/.cargo/env" ]]; then
-    source "$HOME/.cargo/env"
+   source "$HOME/.cargo/env"
 fi
 
 if exe_exists go; then
-    export GOPATH="$HOME/go"
-    export GOBIN="$GOPATH/bin"
-    add_to_path "$GOBIN"
+   export GOPATH="$HOME/go"
+   export GOBIN="$GOPATH/bin"
+   add_to_path "$GOBIN"
 fi
 
 if exe_exists dotnet; then
-    add_to_path "$HOME/.dotnet/tools"
+   add_to_path "$HOME/.dotnet/tools"
 fi
 
 export EDITOR='emacs -nw'
@@ -1707,6 +1707,14 @@ alias cl='clear; ls'
 
 if exe_exists gmake; then
     alias make=gmake
+fi
+#+END_SRC
+
+[[https://github.com/ajeetdsouza/zoxide][Zoxide]] provides a fuzzy version of =cd=. Because =zoxide= is such a long command, I have it alias itself to =c=.
+
+#+BEGIN_SRC  zsh
+if exe_exists zoxide; then
+   eval "$(zoxide init zsh --cmd c)"
 fi
 #+END_SRC
 
