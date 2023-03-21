@@ -63,6 +63,7 @@ Referencing and editing our configuration is a common action (for good or for il
 (defun =config-heading ()
   "Jump to a config heading."
   (interactive)
+  (require 'org)
   (org-overview)
   (consult-org-heading nil `(,=literate-config-file))
   (org-reveal)
@@ -737,6 +738,8 @@ When I load a theme, I only want that theme to apply. I don't want the previous 
 I'm currently using [[https://github.com/nashamri/spacemacs-theme][spacemacs-theme]], both light and dark as my goto-theme.
 
 #+BEGIN_SRC emacs-lisp
+;; Currently, running this theme generates warnings.  This fix is:
+;; https://github.com/nashamri/spacemacs-theme/pull/200
 (elpaca spacemacs-theme
 #+END_SRC
 
@@ -1374,15 +1377,12 @@ TODO Combine ==org-describe-link= with =org-link-make-description-function= to g
 There are quite a few different terminal emulators for Emacs, from the built in =term= to the fully Emacs Lisp based shell =eshell=. I prefer [[https://github.com/akermu/emacs-libvterm][vterm]], an Emacs integration of the [[https://launchpad.net/libvterm][libvterm]] C99 library. It acts as a fully function unconstrained terminal, just like =Termnial.app= or [[https://github.com/alacritty/alacritty][Alacritty]].
 
 #+BEGIN_SRC emacs-lisp
-(elpaca vterm
-<<defun-vterm>>
-<<kill-vterm>>)
+(elpaca vterm)
 #+END_SRC
 
 =vterm= isn't project aware, but I would prefer that it was. This can be accomplished by advising the =vterm= function.
 
-#+NAME: defun-vterm
-#+BEGIN_SRC emacs-lisp :tangle no
+#+BEGIN_SRC emacs-lisp
 (defun =project-vterm (&optional arg)
   "A project aware invocation of `vterm'.
 ARG is passed to `vterm' without processing."
@@ -1392,14 +1392,14 @@ ARG is passed to `vterm' without processing."
 	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
 	(vterm arg))
     (vterm arg)))
+
+(require 'project)
 (defalias 'project-shell '=project-vterm)
 #+END_SRC
 
 We ensure that =vterm= buffers are cleaned up when they are a part of a project by adding them to =project-kill-buffers=.
 
-#+NAME: kill-vterm
-#+BEGIN_SRC emacs-lisp :tangle no
-(require 'project)
+#+BEGIN_SRC emacs-lisp
 (add-to-list 'project-kill-buffer-conditions
 	     '(and
 	       (derived-mode . vterm-mode)
