@@ -932,7 +932,7 @@ We now define the actual command pallet we want.
 	(consult-find "`find` file" "C-f")
 	(consult-ripgrep "Find regexp" "g")
 	(magit "Git" "v")
-	(vterm "Shell" "t")))
+	(=project-vterm "Shell" "t")))
 #+END_SRC
 
 ** Completion
@@ -1755,4 +1755,19 @@ if ! [[ -d "$HIGHLIGHT" ]]; then
     git clone 'https://github.com/zsh-users/zsh-syntax-highlighting.git' "$HIGHLIGHT"
 fi
 source $HIGHLIGHT/zsh-syntax-highlighting.zsh
+#+END_SRC
+
+* Git
+
+#+BEGIN_SRC conf-unix :tangle .gitconfig
+# This is Git's per-user configuration file.
+[user]
+name = Ian Wahbe
+email = <<user-mail-address>>
+[github]
+	user = iwahbe
+[init]
+	defaultBranch = main
+[pull]
+	rebase = false
 #+END_SRC
