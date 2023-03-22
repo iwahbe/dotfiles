@@ -6,7 +6,7 @@
 ;; Allow custom faces in fenced comments.
 ;;
 ;; The origin goal is to allow `variable-pitch' comments to encourage long form explinations of the content of my `init.el'.
-;; A literate config provided excelent readability, but poor writeability.  A pure `emacs-lisp' file gave excellent writeability,
+;; A literate config provided excellent readability, but poor writeability.  A pure `emacs-lisp' file gave excellent writeability,
 ;; but so-so readability.  Here I'm trying to get the best of both worlds.
 ;;-
 
@@ -55,12 +55,11 @@ Each element in FACES is expect to be a symbol."
 	    (unless (facep old-face)
 	      (user-error "Attempting to define equivalent of non-existent face: %s" old-face))
 	    `(defface ,new-face
-	       '((t . '(:inherit (,old-face fixed-pitch) :extend t)))
+	       '((t . (:inherit (,old-face fixed-pitch))))
 	       ,(concat "The `rich-comments' equivalent of `" (symbol-name old-face) "-face'."))))
 	faces)))
 
-(rich-comments-defface-code
-  constant variable-name)
+(rich-comments-defface-code constant variable-name function-name)
 
 (with-eval-after-load 'flyspell
   ;; `flyspell' uses faces to determine what should be commented on.  We need to add
@@ -71,14 +70,17 @@ Each element in FACES is expect to be a symbol."
 
 (defvar rich-comments-font-lock-keywords
   `((rich-comments-match-fence 0 'rich-comments-fence-face t)
-    (rich-comments-match-body 0 'rich-comments-body-face t))
+    (rich-comments-match-body 0 'rich-comments-body-face t)
+    (rich-comments-match-constant 2 'rich-comments-constant-face t)
+    (rich-comments-match-variable 2 'rich-comments-variable-name-face t)
+    (rich-comments-match-function 2 'rich-comments-function-name-face t))
   "The keyword locking for `font-lock-keywords'.")
 
 (defun rich-comments--enable ()
   "Enable `rich-comments-mode'."
   (add-to-list 'font-lock-extend-region-functions
 	       #'rich-comments--font-lock-extend-region)
-  (font-lock-add-keywords nil rich-comments-font-lock-keywords))
+  (font-lock-add-keywords nil rich-comments-font-lock-keywords t))
 
 (defun rich-comments--disable ()
   "Disable `rich-comments-mode'."
@@ -93,7 +95,7 @@ The search starts from `point'."
   (let (found origin)
     (save-excursion
       (while (and (not found) (< (point) bound)
-		  (re-search-forward "^;;;?-.*\n" bound t))
+		  (re-search-forward "^;;;?-.*" bound t))
 	(setq origin (point)
 	      found (save-match-data
 		      ;; go back 1, moving before the matched \n
@@ -103,6 +105,34 @@ The search starts from `point'."
     (when found
       (goto-char origin)
       found)))
+
+(defmacro rich-comments--quote-match (&rest data)
+  (declare (indent defun))
+  `(progn
+     ,@(mapcar
+        (lambda (x)
+          `(defun ,(intern (concat "rich-comments-match-" (symbol-name (car x)))) (bound)
+             "Set `match-data' (element 2) to describe the first quoted word before BOUND.
+The search starts from `point'."
+             (let (found)
+               (save-excursion
+                 (while (and (not found) (< (point) bound)
+                             (re-search-forward "\\([`']\\)\\(.+\\)\\('\\)" bound t))
+                   (when (and ,(cadr x)
+                              (save-match-data
+                                (save-excursion
+                                  (rich-comments--region-bounds))))
+                     (setq found (point)))))
+               (when found
+                 (goto-char (1- found))
+                 t))))
+        data)))
+
+(rich-comments--quote-match
+ (variable (boundp (intern-soft (match-string 2))))
+ (function (fboundp (intern-soft (match-string 2))))
+ (constant t))
+
 
 (defun rich-comments-match-body (bound)
   "Set `match-data' to describe the next line of a body bounded by two fences.
@@ -187,6 +217,7 @@ This function is not excursion safe."
 	  (when (eq current-line (line-number-at-pos))
 	    ;; We are at the top, so we should stop now
 	    (setq exit-loop t))))
+      (setq exit-loop nil)
       (goto-char origin)
       (if (and (not above-valid)
 	       above-border
@@ -204,8 +235,12 @@ This function is not excursion safe."
 	  ;; We only need to bother searching down if the search up was successful
 	  (while
 	      (and
+               (not exit-loop)
 	       (progn
-		 (beginning-of-line 2)
+                 (let ((current-line (line-number-at-pos)))
+		   (beginning-of-line 2)
+                   (setq exit-loop
+                         (eq current-line (line-number-at-pos))))
 		 (rich-comments--comment-p))
 	       (not below-border))
 	    (when (rich-comments--border-p t)
