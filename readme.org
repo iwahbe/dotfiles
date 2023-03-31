@@ -716,6 +716,12 @@ Spaces vs tabs is the forever war. I have no stake in this race, except that som
 (setq-default indent-tabs-mode nil)
 #+END_SRC
 
+Recursive minibuffers are often helpful.
+
+#+BEGIN_SRC emacs-lisp
+(setq enable-recursive-minibuffers t)
+#+END_SRC
+
 *** Theme
 
 Emacs uses a concept called a =theme= to control system appearance. Each theme applies a layer of =face= description to the loaded buffer. The ordered list of enabled themes is defined in =custom-enabled-themes=.
@@ -1083,7 +1089,8 @@ We need to define the set of valid language grammars.
 #+BEGIN_SRC emacs-lisp
 (setq treesit-language-source-alist
       '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))
-	(tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))))
+	(tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))
+        (json       . ("https://github.com/tree-sitter/tree-sitter-json"       "master" "src"))))
 #+END_SRC
 
 By default, =treesit= installs grammars in =(expand-file-name "tree-sitter" user-emacs-directory)=. We want to redirect this to a directory in =.cache=.
@@ -1139,7 +1146,27 @@ To avoid recomputing strings vs keys, =jsonian= can use existing syntax highligh
 [[https://magit.vc][Magit]] is everyone's favorite git client, and I'm no exception.
 
 #+BEGIN_SRC emacs-lisp
-(elpaca magit)
+(elpaca magit
+  (defun =magit-patch-yank (&optional arg)
+    "Like `magit-patch-save' except the patched is copied to the kill ring
+instead of a file. ARG is passed directly to
+ `magit-patch-save'."
+    (interactive '(current-prefix-arg))
+    (require 'magit-patch)
+    (let ((fname (expand-file-name (make-temp-name "my-magit")
+                                   (or small-temporary-file-directory
+                                       temporary-file-directory))))
+      (magit-patch-save fname arg)
+      (with-temp-buffer
+        (insert-file-contents-literally fname)
+        (delete-file fname)
+        (kill-new
+         (buffer-substring (point-min) (point-max))))))
+
+  (with-eval-after-load 'magit-patch
+    (require 'magit-patch)
+    (transient-append-suffix 'magit-patch "r"
+      '("y" "Yank diff as patch" =magit-patch-yank))))
 #+END_SRC
 
 I often share code snippets from GitHub repos. It is helpful to be able to link to snippets without going to [[https://github.com][github.com]], and GitHub maintains a stable and easily compute-able link format.
@@ -1347,12 +1374,12 @@ TODO Combine ==org-describe-link= with =org-link-make-description-function= to g
 			     ;; `gh` to get the issue title and display that as the
 			     ;; description.
 			     ((pred (string-match
-				     "https://github.com/\\([-a-zA-Z0-9]+\\)/\\([-a-zA-Z0-9]+\\)/issues/\\([0-9]+\\)"))
+				     "https://github.com/\\([-a-zA-Z0-9]+\\)/\\([-a-zA-Z0-9]+\\)/\\(pull\\|issues\\)/\\([0-9]+\\)"))
 			      (with-temp-buffer
 				(unless (equal 0
 					       (call-process
 						(executable-find "gh") nil t nil
-						"issue" "view" (substring link (match-beginning 3) (match-end 3))
+						"issue" "view" (substring link (match-beginning 4) (match-end 4))
 						(concat "--repo="
 							(substring link (match-beginning 1) (match-end 1))
 							"/"
@@ -1508,6 +1535,16 @@ For completion and semantic analysis, we use LSP:
 
 #+BEGIN_SRC emacs-lisp
 (=add-hook 'typescript-ts-mode-hook #'=lsp-ensure)
+#+END_SRC
+
+*** Rust
+
+Rust is pretty simple, we want =rust-mode= and then a LSP on top:
+
+#+BEGIN_SRC emacs-lisp
+(elpaca rust-mode
+  (setq rust-format-on-save t))
+(=add-hook rust-mode-hook #'lsp-ensure)
 #+END_SRC
 
 ** Pulumi
