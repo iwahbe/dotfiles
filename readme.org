@@ -678,7 +678,7 @@ The display function is similar to the graphic version, aiming to put the text c
     (center-region (point-min) (point-max))))
 #+END_SRC
 
-** UI
+** UX
 
 I understand what the scratch buffer does, so the explanation is not necessary.
 
@@ -720,6 +720,17 @@ Recursive minibuffers are often helpful.
 
 #+BEGIN_SRC emacs-lisp
 (setq enable-recursive-minibuffers t)
+#+END_SRC
+
+*** Desktop
+
+We don't enable =desktop= to handle restoring place after exiting. There are two blocking problems:
+1. =desktop= doesn't lead to a consistent restore of all buffers.
+2. =desktop= also slows down loading by about 3 seconds, which is unacceptable.
+
+#+BEGIN_SRC emacs-lisp :tangle no
+(setq desktop-path (list (=cache-subdirectory "desktop")))
+(desktop-save-mode +1)
 #+END_SRC
 
 *** Theme
@@ -769,6 +780,7 @@ I expect the cursor to be static, and I prefer a bar over a block.
 (setq-default cursor-type 'bar)
 (blink-cursor-mode -1)
 #+END_SRC
+
 
 ** Modeline
 
@@ -912,33 +924,63 @@ When a project is entered, =project-switch-commands= is used to determine what d
 Before a switch command is executed, I set =default-directory= to the project I just switched to. This enables commands like =magit= and =vterm= to kick off in the new project.
 
 #+BEGIN_SRC emacs-lisp
-(defun =project-set-switch-commands (pallet)
+(defun =project-set-switch-commands (pallet unbound)
   "Set `project-switch-commands'.
 
 This function alters the commands passed in via PALLET to make
 them aware of the new project."
   (setq project-switch-commands
-	(mapcar
-	 (lambda (x) (cons
-		      (lambda ()
-			(interactive)
-			(let ((default-directory
-			       (or project-current-directory-override
-				   default-directory)))
-			  (funcall-interactively (car x))))
-		      (cdr x)))
-	 pallet)))
+        (append
+	 (mapcar
+	  (lambda (x) (cons
+		       (lambda ()
+			 (interactive)
+			 (let ((default-directory
+			        (or project-current-directory-override
+				    default-directory)))
+			   (funcall-interactively (car x))))
+		       (cdr x)))
+	  pallet)
+         unbound)))
+#+END_SRC
+
+This function goes to the most recently used buffer in the project.
+
+#+BEGIN_SRC emacs-lisp
+(defun =project-switch-to-most-recent ()
+  "Switch to the most recently used buffer in a project."
+  (interactive)
+  (if-let* ((proj (project-current nil project-current-directory-override))
+            (bufs (seq-filter
+                   (lambda (b) (and (not (eq b (current-buffer)))
+                                    (not (string-prefix-p " " (buffer-name b)))))
+                   (project-buffers proj))))
+      (switch-to-buffer (car bufs))
+    (message "Could not find any buffers to switch to in '%s'"
+             project-current-directory-override)
+    (sit-for 1)
+    (project-switch-project project-current-directory-override)))
 #+END_SRC
 
 We now define the actual command pallet we want.
 
 #+BEGIN_SRC emacs-lisp
 (=project-set-switch-commands
-      '((project-find-file "Find file" "f")
-	(consult-find "`find` file" "C-f")
-	(consult-ripgrep "Find regexp" "g")
-	(magit "Git" "v")
-	(=project-vterm "Shell" "t")))
+ '((project-find-file "Find file" "f")
+   (consult-find "`find` file" "C-f")
+   (consult-ripgrep "Find regexp" "g")
+   (magit "Git" "v")
+   (=project-vterm "Shell" "t"))
+ '((=project-switch-to-most-recent "Most recent" "r")))
+#+END_SRC
+
+To avoid duplicating commands in the project map, we provide a mapping for quick access to the project switcher against the current project.
+
+#+BEGIN_SRC emacs-lisp
+(global-set-key (kbd "C-x P") (lambda () (interactive)
+                                "Run the project switcher in the current project"
+                                (project-switch-project (when-let ((p (project-current)))
+                                                          (project-root p)))))
 #+END_SRC
 
 ** Completion
