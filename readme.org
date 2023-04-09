@@ -787,6 +787,109 @@ I expect the cursor to be static, and I prefer a bar over a block.
 (blink-cursor-mode -1)
 #+END_SRC
 
+** 1Password
+
+I use 1Password for secrets management. I would like to be able to inject 1Password secrets (like API keys) into my Emacs config from 1Password during startup.
+
+Each call to the 1Password's =op= CLI tool is relatively slow (and requires a authentication step). To avoid making multiple calls, we will model this as a queue and flush system. When a variable is set, we add it to ==1Password--forms=, which acts as our queue. Any time we need prompt access to a variable, we flush the entire queue using =op='s =inject= command, and then =eval-buffer=  the result.
+
+#+BEGIN_SRC emacs-lisp
+(defvar =1Password--forms nil
+  "A list of forms to evaluate after templating through 1Password.
+
+After forms are evaluated, they are removed from this var.")
+
+(defmacro =1Password-setq (name path &rest consuming-funcs)
+  "Declare that NAME should be filled from 1Password.
+PATH is the 1Password path to the item.
+CONSUMING-FUNCS is a list of functions that are know to consume NAME.
+
+Each consuming func is adviced to ensure that values set with
+`=1Password-setq' are actually set before their consuming
+functions are run."
+  `(progn
+     (setq =1Password--forms
+           (cons (list 'setq ',name ,(concat "{{ op://Personal/" path " }}"))
+                 =1Password--forms))
+     ,@(mapcar (lambda (f)
+                 `(advice-add ,f :before #'=1Password--ensure))
+               consuming-funcs)))
+
+(defun =1Password--flush ()
+  "Evaluate `=1Password--forms' after passing it through the 1Password CLI."
+  (if-let ((op (executable-find "op")))
+      ;; Create a temporary file for `op' to consume. We do this instead of piping into
+      ;; `op' directly because `op' (as of April, 2023) doesn't allow itself to be created
+      ;; without any stdin or input file. Programmatic consumption in Emacs goes
+      ;;
+      ;; 1. Create process
+      ;; 2. Pipe in input
+      ;;
+      ;; Unfortunately, `op' errors out between steps (1) and (2) with the error
+      ;;
+      ;;   [ERROR] 2023/04/09 16:35:12 expected data on stdin but none found
+      ;;
+      ;; Writing to a file avoid this, at the cost of extra cleanup later. There is a
+      ;; minimal security penalty to writing to a temp file, since the file we write only
+      ;; contains placeholders for our secret values, not the values themselves.
+      (let ((tmp (make-temp-file "1password.template")))
+        (with-temp-file tmp
+          (insert (mapconcat #'pp-to-string =1Password--forms "\n")))
+        (with-current-buffer (process-buffer
+                              (make-process :name "1Password Init"
+                                            :buffer "1Password"
+                                            :command `(,op "inject" "--in-file" ,tmp)
+                                            :connecton-type 'pipe
+                                            :sentinel #'=1Password--sentinel))
+          (set (make-local-variable '=1Password-template-file) tmp)))
+    (warn "Could not find 1Password CLI")))
+
+(defun =1Password--sentinel (proc event)
+  "The sentinel that controls the 1Password injection process.
+PROC is the process and EVENT is the event that triggered the sentinel."
+  (when (string-match "finished\n" event)
+    ;; According to the manual for `process-exit-status', 256 indicates that a process was
+    ;; closed "abnormally". I take this to mean an error was returned.
+    (if (eq (process-exit-status proc) 256)
+        (warn "1Password did not exit cleanly: %s"
+              (let ((b (process-buffer proc)))
+                (if (buffer-live-p b)
+                    (with-current-buffer b
+                      (buffer-substring (point-min) (point-max)))
+                  "dead buffer")))
+      (let ((b (process-buffer proc)))
+        (unless (buffer-live-p b)
+          (error "1Password buffer died unexpectedly"))
+        ;; Since we know the input file is not being used (because the consuming process
+        ;; exited), we can clean up.
+        (delete-file (buffer-local-value '=1Password-template-file b))
+        ;; We mark ourselves as done, freeing functions like `=1Password--ensure' to exit.
+        (setq =1Password--forms nil)
+        ;; We then evaluate the buffer. This doesn't present a race condition, since Emacs
+        ;; doesn't interrupt running code, even with Sentinels.
+        (eval-buffer b)
+        (kill-buffer b)))))
+
+(defun =1Password-init-async ()
+  "Asyncronously evaluate all declared 1Password variables."
+  (=1Password--flush))
+
+(defun =1Password--ensure (&rest args)
+  "Syncronously ensure that 1Password has loaded all declared values.
+ARGS allows this function to be used in hooks.  ARGS is ignored."
+  (ignore args)
+  (when =1Password--forms
+    (message "Ensuring 1Password variables are loaded")
+    (=1Password--flush)
+    (while =1Password--forms
+      (sit-for 0.05))))
+#+END_SRC
+
+If I wanted to load all secrets immediately on startup, I would add in the following. I don't do this because it causes the TouchID™  authentication popup to trigger every time, regardless of if I'm already logged into 1Password on my Mac. This means that opening Emacs in a terminal requires me to authenticate, even if I don't need to use a value derived from 1Password. This is not acceptable.
+
+#+BEGIN_SRC emacs-lisp :tangle no
+(add-hook 'elpaca-after-init-hook #'=1Password-init-async)
+#+END_SRC
 
 ** Modeline
 
@@ -1593,6 +1696,15 @@ Rust is pretty simple, we want =rust-mode= and then a LSP on top:
 (elpaca rust-mode
   (setq rust-format-on-save t))
 (=add-hook rust-mode-hook #'lsp-ensure)
+#+END_SRC
+
+*** ChatGPT
+
+I have written a package for interacting with =ChatGPT= called [[https://github.com/iwahbe/chat.el][chat.el]]. This provides basic functionality to interact with [[https://openai.com][OpenAI]]'s [[https://platform.openai.com/docs/api-reference/chat][API]].
+
+#+BEGIN_SRC emacs-lisp
+(elpaca (chat.el :host github :repo "iwahbe/chat.el")
+  (=1Password-setq chat-api-key "OpenAI/API Keys/Personal" #'chat-get-api-key))
 #+END_SRC
 
 ** Pulumi
