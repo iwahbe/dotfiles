@@ -1314,6 +1314,10 @@ instead of a file. ARG is passed directly to
         (kill-new
          (buffer-substring (point-min) (point-max))))))
 
+  (with-eval-after-load 'magit
+    (setq magit-display-buffer-function
+          #'magit-display-buffer-same-window-except-diff-v1))
+
   (with-eval-after-load 'magit-patch
     (require 'magit-patch)
     (transient-append-suffix 'magit-patch "r"
@@ -1554,7 +1558,8 @@ TODO Combine ==org-describe-link= with =org-link-make-description-function= to g
 There are quite a few different terminal emulators for Emacs, from the built in =term= to the fully Emacs Lisp based shell =eshell=. I prefer [[https://github.com/akermu/emacs-libvterm][vterm]], an Emacs integration of the [[https://launchpad.net/libvterm][libvterm]] C99 library. It acts as a fully function unconstrained terminal, just like =Termnial.app= or [[https://github.com/alacritty/alacritty][Alacritty]].
 
 #+BEGIN_SRC emacs-lisp
-(elpaca vterm)
+(elpaca vterm
+  (setq vterm-max-scrollback 10000))
 #+END_SRC
 
 =vterm= isn't project aware, but I would prefer that it was. This can be accomplished by advising the =vterm= function.
@@ -1710,6 +1715,15 @@ I have written a package for interacting with =ChatGPT= called [[https://github.
 ** Pulumi
 
 I currently work for [[https://www.pulumi.com][Pulumi]], and I define a set of special functions to work specifically with Pulumi specific data formats.
+
+The largest in terms of scope (but not code) is a special mode for Pulumi YAML:
+
+#+BEGIN_SRC emacs-lisp
+(elpaca (pulumi-yaml :host github :repo "pulumi/pulumi-lsp"
+                     :files ("editors/emacs/*"))
+  (require 'pulumi-yaml)
+  (=add-hook pulumi-yaml-mode-hook #'=lsp-ensure))
+#+END_SRC
 
 Pulumi defines its providers with a [[https://www.pulumi.com/docs/guides/pulumi-packages/schema/][schema]]. This function follows internal schema links by leveraging  [[JSON][jsonian]].
 
@@ -1967,4 +1981,6 @@ email = <<user-mail-address>>
 	defaultBranch = main
 [pull]
 	rebase = false
+[rerere]
+	enabled = true
 #+END_SRC
