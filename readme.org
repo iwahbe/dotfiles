@@ -748,6 +748,11 @@ When I load a theme, I only want that theme to apply. I don't want the previous 
 #+BEGIN_SRC emacs-lisp
 (defun =load-theme (theme)
   "Load THEME without asking for permission."
+  (interactive
+   (list (intern (completing-read "Load custom theme: "
+                                  (mapcar #'symbol-name
+				          (custom-available-themes))
+                                  nil t))))
   (load-theme (pcase theme
 		('light 'spacemacs-light)
 		('dark 'spacemacs-dark)
