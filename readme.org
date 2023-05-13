@@ -1632,6 +1632,92 @@ I need a major mode: =go-mode=.
   (lambda () (add-hook 'before-save-hook #'gofmt-before-save nil t)))
 #+END_SRC
 
+#+BEGIN_SRC emacs-lisp
+(defun =go-invert-string (start end)
+  "Invert the string at point.
+
+If the region is active, then the region is interpreted to define
+the string at point.
+
+START and END define the bounds of the region acted upon.
+
+If the string in the region is an interpreted string literal, convert it to
+a raw string literal and vice versa."
+  (interactive (list
+                (if (region-active-p) (region-beginning)
+                  (car (bounds-of-thing-at-point 'string)))
+                (if (region-active-p) (region-end)
+                  (cdr (bounds-of-thing-at-point 'string)))))
+  (pcase (char-after start)
+    (?`
+     (unless (eq (char-before end) ?`)
+       (user-error "Expected ` at region end, found %c" (char-before end)))
+     (=go--string-raw-to-interpreted start end))
+    (?\" (=go--string-interpreted-to-raw start end))
+    (_ (user-error "Expected the region to start with %c or %c, found %c"
+                   ?\" ?` (char-after start)))))
+
+(defun =go--string-raw-to-interpreted (start end)
+  "Convert a raw string literal to an interpreted string literal.
+
+The opening ` should be after START and the closing ` should be before END."
+  (atomic-change-group
+    (save-excursion
+      (goto-char start)
+      (delete-char 1)
+      (insert-char ?\")
+      (dotimes (_ (- end start 2))
+        (pcase (char-after)
+          (?\n
+           (delete-char 1)
+           (insert "\\n"))
+          (?\t
+           (delete-char 1)
+           (insert "\\t"))
+          (?\"
+           (delete-char 1)
+           (insert "\\\""))
+          (?\\
+           (delete-char 1)
+           (insert "\\\\"))
+          (_ (forward-char))))
+      (delete-char 1)
+      (insert-char ?\"))))
+
+(defun =go--string-interpreted-to-raw (start end)
+    "Convert a interpreted string literal to an raw string literal.
+
+The opening \" should be after START and the closing \" should be before END."
+  (atomic-change-group
+    (save-excursion
+      (goto-char start)
+      (delete-char 1)
+      (insert-char ?`)
+      (let ((unprocessed (- end start 2)))
+        (while (> unprocessed 0)
+          (setq unprocessed (1- unprocessed))
+          (if (not (eq (char-after) ?\\))
+              (forward-char)
+            (delete-char 1) ;; Delete the escaping \
+            (setq unprocessed (1- unprocessed)) ;; mark the extra char as processed
+            (pcase (char-after)
+              (?n
+               (delete-char 1)
+               (insert "\n"))
+              (?t
+               (delete-char 1)
+               (insert "\t"))
+              (?\"
+               (delete-char 1)
+               (insert "\""))
+              (?\\
+               (delete-char 1)
+               (insert "\\"))
+              (_ (forward-char))))))
+      (delete-char 1)
+      (insert-char ?`))))
+#+END_SRC
+
 *** Markdown
 
 =markdown-mode= provides Markdown support.
