@@ -1,0 +1,144 @@
+#!/bin/sh
+# make_link <src> <dst>
+#
+# Create a link between <src> and <dst>.
+# <src> may be a directory.
+# <dst> will not exist.
+#
+# You can override the command used by setting CONFIG_LINK_CMD.
+make_link () {
+    if [[ "" == "$CONFIG_LINK_CMD" ]]; then
+	echo "Linking $1 to $2: done"
+	ln -s -w $1 $2
+    else
+	$CONFIG_LINK_CMD $1 $2
+    fi
+}
+
+# unmake_link <src> <dst>
+#
+# Remove an existing link from <src> to <dst>.
+#
+# You can override the command used by setting CONFIG_UNLINK_CMD.
+unmake_link() {
+    if [[ "" == "$CONFIG_UNLINK_CMD" ]]; then
+	echo "Unlinking $1 from $2: done"
+	rm $2
+    else
+	$CONFIG_UNLINK_CMD $1 $2
+    fi
+}
+
+# skip_link <src> <dst>
+#
+# Skip linking from <src> to <dst> because <dst> already exists.
+skip_link() {
+    # echo "skiping linking $1 to $2"
+    true # Necessary because empty functions are not allowed in sh scripts.
+}
+
+SRC_DEFAULT_DIR="$PWD/output" # This is chosen so running bin/config up "just works"
+
+DST_DEFAULT_DIR="$HOME"
+
+read -r -d '' HELP <<- EOF
+	config [up|down] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
+
+	Recursivly link src to dst. Effert is made to make the minimum number of links.
+	That means that directories are linked if possible, otherwise their content is recursed.
+
+	Files in dst are prioritized over files in src.
+
+	Both src and dst must be directories.
+EOF
+
+SRC_DIR=$2
+DST_DIR=$3
+
+if [[ "$SRC_DIR" == "" ]]; then
+    # If the source directory is empty, apply the default.
+    SRC_DIR="$SRC_DEFAULT_DIR"
+elif [[ ! "$SRC_DIR" == /* ]]; then
+    # If the source directory doesn't start with a slash, prefix it with the current
+    # directory
+    SRC_DIR="$PWD/$SRC_DIR"
+fi
+
+if [[ "$DST_DIR" == "" ]]; then
+    DST_DIR="$DST_DEFAULT_DIR"
+elif [[ ! "$DST_DIR" == /* ]]; then
+     # If a relative directory was given, set it relative to the current directory.
+     DST_DIR="$PWD/$DST_DIR"
+fi
+
+if [[ ! -d "$SRC_DIR" ]]; then
+    echo "'$SRC_DIR' is not a directory"
+    echo
+    echo "$HELP"
+    exit 1
+fi
+
+if [[ ! -d "$DST_DIR" ]]; then
+    echo "'$DST_DIR' is not a directory"
+    echo
+    echo "$HELP"
+    exit 1
+fi
+
+# stand_up <path>
+stand_up () {
+    if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
+	# dst doesn't exist, so link the entry.  This can be either a file or a
+	# directory.
+	make_link "$SRC_DIR/$1" "$DST_DIR/$1"
+    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
+	# The dst directory exists,
+	for entry in $('ls' -a "$SRC_DIR/$1"); do
+	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
+		true # do nothing here
+	    elif [[ "$1" == "" ]]; then
+		stand_up "$entry"
+	    else
+		stand_up "$1/$entry"
+            fi
+	done
+    elif [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
+	echo "Linking $DST_DIR/$1: already linked"
+    else
+	# We can't recurse down directories, so we give up
+	skip_link "$SRC_DIR/$1" "$DST_DIR/$1"
+    fi
+}
+
+# tear_down <path>
+tear_down () {
+    if [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
+	# Its a link to the file in our tree
+	unmake_link "$SRC_DIR/$1" "$DST_DIR/$1"
+    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
+	# The dst directory exists,
+	for entry in $('ls' -a "$SRC_DIR/$1"); do
+	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
+		true # do nothing here
+	    elif [[ "$1" == "" ]]; then
+		tear_down "$entry"
+	    else
+		tear_down "$1/$entry"
+	    fi
+	done
+    fi
+}
+
+case $1 in
+    up)
+	stand_up ""
+	;;
+    down)
+	tear_down ""
+	;;
+    *)
+	echo "Unknown command \"$1\""
+	echo ""
+	echo "$HELP"
+	;;
+esac

@@ -2074,4 +2074,11 @@ email = <<user-mail-address>>
 	rebase = false
 [rerere]
 	enabled = true
+[core]
+	excludesfile = ~/.global_gitignore
+#+END_SRC
+
+#+BEGIN_SRC fundamental :tangle .global_gitignore
+.#*     // To ignore emacs backup files
+go.work // Go work files are dev tools, and should not be checked in.
 #+END_SRC
