@@ -1946,7 +1946,7 @@ We want to set =$PATH= in =.zshenv=, and set aliases in =.zshrc=.
 =zsh= has a utility to declare a variable as a list of unique values. This describes =$PATH= perfectly.
 
 #+BEGIN_SRC zsh :tangle .zshenv
-typeset -U path
+typeset -T USER_PATH user_path
 #+END_SRC
 
 We now want to set the path to interact with various programs we have installed. To keep the =.zshenv= file clean, we only want to set the path when the associated files exist. For clarity, we define two simple helper functions:
@@ -1960,8 +1960,17 @@ function exe_exists {
 
 # add_to_path <path>
 function add_to_path {
-    path=("$1" "$path[@]")
+    path=("$1" $path)
+    user_path=("$1" $user_path)
 }
+export USER_PATH
+#+END_SRC
+
+Apple pre-appends to the user set path between running =.zshenv= and =.zshrc= via the =path_helper= (see =man path_helper=) subsystem. To ensure that user declared paths come before system supplied paths, we set =$user_path= to pre-append =$path= in the beginning of =.zshrc=.
+
+#+BEGIN_SRC zsh
+# Pre-append manually set paths to the path variable
+path=($user_path $path)
 #+END_SRC
 
 We can now use those to set up the path.
@@ -1971,6 +1980,13 @@ For some reason, when =.zshenv= is run, =/usr/local/bin= is not present on the p
 #+BEGIN_SRC zsh :tangle .zshenv
 if [[ -d "/usr/local/bin" ]]; then
    add_to_path "/usr/local/bin"
+fi
+if [[ -d "/opt/homebrew/bin" ]]; then
+   add_to_path "/opt/homebrew/bin"
+   alias brew="/opt/homebrew/bin/brew"
+fi
+if [[ -d "/usr/local/Homebrew/bin" ]]; then
+   alias oldbrew="/usr/local/Homebrew/bin/brew"
 fi
 #+END_SRC
 
@@ -1988,7 +2004,6 @@ fi
 if exe_exists dotnet; then
    add_to_path "$HOME/.dotnet/tools"
 fi
-
 export EDITOR='emacs -nw'
 #+END_SRC
 
