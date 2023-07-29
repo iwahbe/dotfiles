@@ -1,0 +1,12 @@
+# Don't add a newline at the end
+add_newline = false
+
+[character]
+success_symbol = "[𝛌](bold green)"
+error_symbol = ""
+
+[status]
+disabled = false
+style = "bold red"
+symbol = "𝛌"
+format = "[$symbol\\($status\\)]($style)"

@@ -1,0 +1,2 @@
+.#*     // To ignore emacs backup files
+go.work // Go work files are dev tools, and should not be checked in.

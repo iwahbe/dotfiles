@@ -1,0 +1,14 @@
+# This is Git's per-user configuration file.
+[user]
+name = USER_NAME
+email = USER_EMAIL
+[github]
+	user = iwahbe
+[init]
+	defaultBranch = main
+[pull]
+	rebase = false
+[rerere]
+	enabled = true
+[core]
+	excludesfile = ~/.global_gitignore
