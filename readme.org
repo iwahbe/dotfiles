@@ -1,6 +1,6 @@
 #+AUTHOR: iwahbe
 #+PROPERTY: header-args :noweb no-export :mkdirp t
-#+PROPERTY: header-args:emacs-lisp :tangle .emacs.d/init.el
+#+PROPERTY: header-args:emacs-lisp :tangle .emacs.d/init.el :comments org
 #+PROPERTY: header-args:zsh :tangle .zshrc :shebang "#!/bin/zsh"
 
 * Literate Configuration
@@ -71,16 +71,16 @@ Referencing and editing our configuration is a common action (for good or for il
 (global-set-key (kbd "C-c C") #'=config-heading)
 #+END_SRC
 
-We don't actually want to tangle this file into its surrounding directory. We want to tangle it into the output directory.
+We don't actually want to tangle this file into its surrounding directory. We want to tangle it into the =home= directory.
 
 #+BEGIN_SRC emacs-lisp
 (advice-add #'org-babel-effective-tangled-filename :around
 	    (lambda (fn buffer-fn src-lang src-tfile)
-	      "Ensure that all files tangled from readme.org are emmited to the output directory."
+	      "Ensure that all files tangled from readme.org are emmited to the home directory."
 	      (let ((v (funcall fn buffer-fn src-lang src-tfile)))
 		(if (and v (equal buffer-fn "readme.org")
 			 (not (string-prefix-p "bin/" src-tfile)))
-		    (concat "output/" v)
+		    (concat "home/" v)
 		  v))))
 #+END_SRC
 
@@ -134,7 +134,7 @@ skip_link() {
 We define defaults for both =$SRC_DIR= and =$DST_DIR=. We define them separately because we will show these defaults in our help message.
 
 #+BEGIN_SRC sh
-SRC_DEFAULT_DIR="$PWD/output" # This is chosen so running bin/config up "just works"
+SRC_DEFAULT_DIR="$PWD/home" # This is chosen so running bin/config up "just works"
 
 DST_DEFAULT_DIR="$HOME"
 #+END_SRC
@@ -143,7 +143,7 @@ We then define our =$HELP= variable, using [[https://tldp.org/LDP/abs/html/here-
 
 #+BEGIN_SRC sh
 read -r -d '' HELP <<- EOF
-	config [cmd] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
+	config [up|down] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
 
 	Recursivly link src to dst. Effert is made to make the minimum number of links.
 	That means that directories are linked if possible, otherwise their content is recursed.

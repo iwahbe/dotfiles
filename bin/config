@@ -37,7 +37,7 @@ skip_link() {
     true # Necessary because empty functions are not allowed in sh scripts.
 }
 
-SRC_DEFAULT_DIR="$PWD/output" # This is chosen so running bin/config up "just works"
+SRC_DEFAULT_DIR="$PWD/home" # This is chosen so running bin/config up "just works"
 
 DST_DEFAULT_DIR="$HOME"
 
