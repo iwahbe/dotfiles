@@ -171,6 +171,12 @@ apply_identity () {
         if [[ "$eof" == "\n" ]]; then
            printf "$eof" >> $file
         fi
+
+        # `git status` still shows changed files as "dirty", even when `git diff` shows
+        # them as clean. We add such files to `git status` comes up clean as expected.
+        if [[ "$(git diff $file)" = "" ]]; then
+           git add $file
+        fi
     done
 }
 
