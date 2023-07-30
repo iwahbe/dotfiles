@@ -184,6 +184,8 @@ case \$1 in
 esac
 EOF
         chmod u+x $USER_IDENTITY_PATH
+        git config --unset-all filter.identity.clean
+        git config --unset-all filter.identity.smudge
         git config filter.identity.clean  "$USER_IDENTITY_PATH clean"
         git config filter.identity.smudge "$USER_IDENTITY_PATH smudge"
         # Now apply the identity filter we have just created
