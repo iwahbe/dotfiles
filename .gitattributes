@@ -1,0 +1,2 @@
+# Apply the identity filter set up by `./bin/config init`
+home/** filter=identity
