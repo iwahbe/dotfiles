@@ -5,6 +5,10 @@ in a users `$HOME` directory. Files and directories are
 [softlinked](https://en.wikipedia.org/wiki/Symbolic_link) by `bin/config` from `./home` to
 `$HOME`.
 
+Secrets and personalization are handled by `git`, preventing the need to copy out of the
+source tree and ensuring all users can have a clean `dotfiles` folder.
+
 ## Getting Started
 
-The only tool that must be installed to work is `bash`. To get started, run `./bin/config up`.
+The only tools that must be installed to work is `git`, `find`, `sed` and a POSIX shell
+(`sh`). To get started, run `./bin/config init && ./bin/config up`.
