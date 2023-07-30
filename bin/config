@@ -184,12 +184,32 @@ case \$1 in
 esac
 EOF
         chmod u+x $USER_IDENTITY_PATH
+
+        # Reset existing identity filter, if any
         git config --unset-all filter.identity.clean
         git config --unset-all filter.identity.smudge
+
+        # Apply newly generated identity filter
         git config filter.identity.clean  "$USER_IDENTITY_PATH clean"
         git config filter.identity.smudge "$USER_IDENTITY_PATH smudge"
-        # Now apply the identity filter we have just created
-        git rm --cached -r . && git add -A
+
+        # Now apply the identity filter we have just created manually
+        for file in $(find home -type f); do
+            content=$(cat "$file")
+
+            # Because the shell does funny things with newlines, we manually check if the
+            # newline exists and re-apply it if it does.
+            if [[ $(tail -c1 "$file" | wc -l) -gt 0 ]]; then
+               eof="\n"
+            else
+               eof=''
+            fi
+
+            printf '%s' "$content" | $USER_IDENTITY_PATH smudge > $file
+            if [[ "$eof" == "\n" ]]; then
+               printf "$eof" >> $file
+            fi
+        done
         ;;
     *)
 	echo "Unknown command \"$1\""
