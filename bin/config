@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+set -eu -o pipefail # Exit on pipe failure
+
 # The script used to apply the config in this repository to the host computer and to
 # remove the applied config from the host computer.
 #
@@ -10,56 +12,57 @@
 # Create a link between <src> and <dst>.
 # <src> may be a directory.
 # <dst> will not exist.
-#
-# You can override the command used by setting CONFIG_LINK_CMD.
+# <depth> is ignored.
 make_link () {
-    if [[ "" == "$CONFIG_LINK_CMD" ]]; then
-	echo "Linking $1 to $2: done"
-	ln -s -w $1 $2
+    echo "Linking $1 to $2"
+    if ln -s -w $1 $2; then
+        echo "Failed to link $1 to $2"
+    fi
+}
+
+preview_make_link () {
+    if [[ "$1" = "/" ]]; then
+        echo "$SRC_DIR/ -> $DST_DIR/"
     else
-	$CONFIG_LINK_CMD $1 $2
+        indent_to $3 "$1"
     fi
 }
 
 # unmake_link <src> <dst>
 #
 # Remove an existing link from <src> to <dst>.
-#
-# You can override the command used by setting CONFIG_UNLINK_CMD.
 unmake_link() {
-    if [[ "" == "$CONFIG_UNLINK_CMD" ]]; then
-	echo "Unlinking $1 from $2: done"
-	rm $2
-    else
-	$CONFIG_UNLINK_CMD $1 $2
-    fi
-}
-
-# skip_link <src> <dst>
-#
-# Skip linking from <src> to <dst> because <dst> already exists.
-skip_link() {
-    # echo "skiping linking $1 to $2"
-    true # Necessary because empty functions are not allowed in sh scripts.
+    echo "Unlinking $1 from $2: done"
+    rm $2
 }
 
 SRC_DEFAULT_DIR="$PWD/home" # This is chosen so running bin/config up "just works"
 
 DST_DEFAULT_DIR="$HOME"
 
-read -r -d '' HELP <<- EOF
+# This is necessary because `read` hits EOF, which causes a non-zero exit code.
+read -r -d '' HELP <<- EOF || true
 	config [up|down|init] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
 
 	Recursivly link src to dst. Effert is made to make the minimum number of links.
-	That means that directories are linked if possible, otherwise their content is recursed.
+	That means that directories are linked if possible, otherwise their content is
+	recursed.
 
 	Files in dst are prioritized over files in src.
 
 	Both src and dst must be directories.
 EOF
 
-SRC_DIR=$2
-DST_DIR=$3
+SRC_DIR=""
+DST_DIR=""
+
+if [ $# -gt 1 ]; then
+    SRC_DIR=$2
+fi
+if [ $# -gt 2 ]; then
+    DST_DIR=$3
+fi
+
 
 if [[ "$SRC_DIR" == "" ]]; then
     # If the source directory is empty, apply the default.
@@ -73,8 +76,8 @@ fi
 if [[ "$DST_DIR" == "" ]]; then
     DST_DIR="$DST_DEFAULT_DIR"
 elif [[ ! "$DST_DIR" == /* ]]; then
-     # If a relative directory was given, set it relative to the current directory.
-     DST_DIR="$PWD/$DST_DIR"
+    # If a relative directory was given, set it relative to the current directory.
+    DST_DIR="$PWD/$DST_DIR"
 fi
 
 if [[ ! -d "$SRC_DIR" ]]; then
@@ -91,45 +94,109 @@ if [[ ! -d "$DST_DIR" ]]; then
     exit 1
 fi
 
-# stand_up <path>
+# indent_to <depth> <item>
+#
+# Print tree characters to look like:
+#
+# |-- top_level/         # indent_to 0 "top_level/"
+# |   |-- second         # indent_to 1 "second"
+# |-- third/             # indent_to 0 "third/"
+# |   |-- fourth         # indent_to 1 "fourth"
+# |   |-- counting/      # indent_to 1 "counting/"
+# |   |   |-- is/        # indent_to 2 "is/"
+# |   |   |   |-- hard   # indent_to 3 "hard"
+indent_to () {
+    one_less=$(( $1 - 1 ))
+    while [[ $one_less -gt 0 ]]; do
+        one_less=$(( $one_less - 1 ))
+        printf "|   "
+    done
+    printf "|-- %s\n" "$2"
+}
+
+# traverse_directory <path> <helper: fn(path, depth)->should_recurse> <depth>
+traverse_directory () {
+    local depth
+    if [[ "$#" -lt 3 ]]; then
+        depth=0
+    else
+        depth=$3
+    fi
+    if $1 "$2" $depth; then
+        for entry in $('ls' -a "$SRC_DIR/$2"); do
+	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
+		true # do nothing here
+	    elif [[ "$2" == "" ]]; then
+		traverse_directory  $1 "$entry" $(( $depth + 1 ))
+	    else
+		traverse_directory $1 "$2/$entry" $(( $depth + 1 ))
+            fi
+	done
+    fi
+}
+
+# stand_up_helper <path> <depth>
+stand_up_helper () {
+    if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
+	# dst doesn't exist, so link the entry.  This can be either a file or a
+	# directory.
+	preview_make_link "$1 @ +" "$DST_DIR/$1" $2
+    elif [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
+        if [[ -d "$SRC_DIR/$1" ]]; then
+            preview_make_link "$1/ @ ~" "" $2
+        else
+            preview_make_link "$1 @ ~" "" $2
+        fi
+    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
+        preview_make_link "$1/" "" $2
+	return 0 # Recurse
+    fi
+    return 1 # Don't recurse
+}
+
+# TODO: Reimplement stand_up in terms of traverse_directory standup_helper. Then
+# re-implement tear_down the same way. We should see a similar diff semantic, with `-` for
+# remove.
+#
+# We can parameterize stand_up_helper with a payload arg that is expanded when passed to
+# stand_up_helper.
+
+# stand_up <path> <link: fn(src, dst)> <depth>
 stand_up () {
     if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
 	# dst doesn't exist, so link the entry.  This can be either a file or a
 	# directory.
-	make_link "$SRC_DIR/$1" "$DST_DIR/$1"
+	$2 "$SRC_DIR/$1" "$DST_DIR/$1" $3
     elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
 	# The dst directory exists,
 	for entry in $('ls' -a "$SRC_DIR/$1"); do
 	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
 		true # do nothing here
 	    elif [[ "$1" == "" ]]; then
-		stand_up "$entry"
+		stand_up "$entry" $2 $(( $3 + 1 ))
 	    else
-		stand_up "$1/$entry"
+		stand_up "$1/$entry" $2 $(( $3 + 1 ))
             fi
 	done
     elif [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
 	echo "Linking $DST_DIR/$1: already linked"
-    else
-	# We can't recurse down directories, so we give up
-	skip_link "$SRC_DIR/$1" "$DST_DIR/$1"
     fi
 }
 
-# tear_down <path>
+# tear_down <path> <unlink: fn(src, dst)>
 tear_down () {
     if [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
 	# Its a link to the file in our tree
-	unmake_link "$SRC_DIR/$1" "$DST_DIR/$1"
+	$2 "$SRC_DIR/$1" "$DST_DIR/$1"
     elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
 	# The dst directory exists,
 	for entry in $('ls' -a "$SRC_DIR/$1"); do
 	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
 		true # do nothing here
 	    elif [[ "$1" == "" ]]; then
-		tear_down "$entry"
+		tear_down "$entry" $2
 	    else
-		tear_down "$1/$entry"
+		tear_down "$1/$entry" $2
 	    fi
 	done
     fi
@@ -180,13 +247,20 @@ apply_identity () {
     done
 }
 
+if [[ $# -eq 0 ]]; then
+	echo "$HELP"
+fi
+
 case $1 in
     up)
         ensure_initialized
-	stand_up ""
+        traverse_directory stand_up_helper "" | column -t -s @
+
+        echo "Now linking"
+	stand_up "" make_link 0
 	;;
     down)
-	tear_down ""
+	tear_down "" unmake_link
 	;;
     init)
         read -p 'What is your full name (example "Jane Smith")? ' USER_NAME
