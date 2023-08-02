@@ -7,27 +7,6 @@ set -eu -o pipefail # Exit on pipe failure
 #
 # To git started, you can run ./bin/config help
 
-# make_link <src> <dst>
-#
-# Create a link between <src> and <dst>.
-# <src> may be a directory.
-# <dst> will not exist.
-# <depth> is ignored.
-make_link () {
-    echo "Linking $1 to $2"
-    if ln -s -w $1 $2; then
-        echo "Failed to link $1 to $2"
-    fi
-}
-
-preview_make_link () {
-    if [[ "$1" = "/" ]]; then
-        echo "$SRC_DIR/ -> $DST_DIR/"
-    else
-        indent_to $3 "$1"
-    fi
-}
-
 # unmake_link <src> <dst>
 #
 # Remove an existing link from <src> to <dst>.
@@ -114,7 +93,14 @@ indent_to () {
     printf "|-- %s\n" "$2"
 }
 
-# traverse_directory <path> <helper: fn(path, depth)->should_recurse> <depth>
+# traverse_directory <helper: fn(path, depth)->should_recurse> <path> <depth>
+#
+# <helper> is intentionally not quoted when it is called, allowing users to pass in a
+# function and initial arguments. This is valid:
+#
+#     traverse_directory "helper initial_arg" $path $depth
+#
+# When "helper" is called, $1 will be "initial_arg".
 traverse_directory () {
     local depth
     if [[ "$#" -lt 3 ]]; then
@@ -122,36 +108,71 @@ traverse_directory () {
     else
         depth=$3
     fi
-    if $1 "$2" $depth; then
+    if eval $1 \""$2"\" $depth; then
         for entry in $('ls' -a "$SRC_DIR/$2"); do
 	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
 		true # do nothing here
 	    elif [[ "$2" == "" ]]; then
-		traverse_directory  $1 "$entry" $(( $depth + 1 ))
+		traverse_directory  "$1" "$entry" $(( $depth + 1 ))
 	    else
-		traverse_directory $1 "$2/$entry" $(( $depth + 1 ))
+		traverse_directory "$1" "$2/$entry" $(( $depth + 1 ))
             fi
 	done
     fi
 }
 
-# stand_up_helper <path> <depth>
-stand_up_helper () {
-    if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
+# stand_up <command> <path> <depth>
+#
+# <command> is itself a function that actually performs the linking.
+# It takes as arguments:
+#   <base>  : The path segment we are looking at
+#   <src>   : The path to the source
+#   <dst>   : The path to the destination
+#   <depth> : The depth in the tree
+#   <kind>  : The kind of operation we expect: [~|+|n|-]
+#             ~ means already linked, so no op
+#             + means link
+#             n no applicable operation
+#             - remove link
+stand_up () {
+    if [[ ! -e "$DST_DIR/$2" ]] && [[ ! -L "$DST_DIR/$2" ]]; then
 	# dst doesn't exist, so link the entry.  This can be either a file or a
 	# directory.
-	preview_make_link "$1 @ +" "$DST_DIR/$1" $2
-    elif [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
-        if [[ -d "$SRC_DIR/$1" ]]; then
-            preview_make_link "$1/ @ ~" "" $2
-        else
-            preview_make_link "$1 @ ~" "" $2
-        fi
-    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
-        preview_make_link "$1/" "" $2
+	$1 "$2" "$SRC_DIR/$2" "$DST_DIR/$2" "$3" +
+    elif [[ -L "$DST_DIR/$2" ]] && [[ "$(readlink $DST_DIR/$2)" == "$SRC_DIR/$2" ]]; then
+        $1 "$2" "$SRC_DIR/$2" "$DST_DIR/$2" "$3" '~'
+    elif [[ -d "$DST_DIR/$2" ]] && [[ -d "$SRC_DIR/$2" ]]; then
+        $1 "$2" "$SRC_DIR/$2" "$DST_DIR/$2" "$3" n
 	return 0 # Recurse
     fi
     return 1 # Don't recurse
+}
+
+# make_link <base> <src> <dst> <depth> <kind>
+#
+# A potential argument for stand_up_helper
+make_link () {
+    if [[ "$5" = + ]]; then
+        echo "Linking $1 to $3"
+        if ! ln -s -w $2 $3; then
+            echo "Failed to link $2 to $3"
+        fi
+    elif [[ "$5" = - ]]; then
+        rm "$3"
+    fi
+}
+
+# preview_make_link <base> <src> <dst> <depth> <kind>
+#
+# A potential argument for stand_up_helper
+preview_make_link () {
+    if [[ "$1" = "" ]]; then
+        echo "$SRC_DIR/ -> $DST_DIR/"
+    elif [[ "$5" = n ]]; then
+        indent_to "$4" "$1"
+    else
+        indent_to "$4" "$1 @ $5"
+    fi
 }
 
 # TODO: Reimplement stand_up in terms of traverse_directory standup_helper. Then
@@ -161,27 +182,6 @@ stand_up_helper () {
 # We can parameterize stand_up_helper with a payload arg that is expanded when passed to
 # stand_up_helper.
 
-# stand_up <path> <link: fn(src, dst)> <depth>
-stand_up () {
-    if [[ ! -e "$DST_DIR/$1" ]] && [[ ! -L "$DST_DIR/$1" ]]; then
-	# dst doesn't exist, so link the entry.  This can be either a file or a
-	# directory.
-	$2 "$SRC_DIR/$1" "$DST_DIR/$1" $3
-    elif [[ -d "$DST_DIR/$1" ]] && [[ -d "$SRC_DIR/$1" ]]; then
-	# The dst directory exists,
-	for entry in $('ls' -a "$SRC_DIR/$1"); do
-	    if [[ "$entry" == "." ]] || [[ "$entry" == ".." ]]; then
-		true # do nothing here
-	    elif [[ "$1" == "" ]]; then
-		stand_up "$entry" $2 $(( $3 + 1 ))
-	    else
-		stand_up "$1/$entry" $2 $(( $3 + 1 ))
-            fi
-	done
-    elif [[ -L "$DST_DIR/$1" ]] && [[ "$(readlink $DST_DIR/$1)" == "$SRC_DIR/$1" ]]; then
-	echo "Linking $DST_DIR/$1: already linked"
-    fi
-}
 
 # tear_down <path> <unlink: fn(src, dst)>
 tear_down () {
@@ -254,10 +254,10 @@ fi
 case $1 in
     up)
         ensure_initialized
-        traverse_directory stand_up_helper "" | column -t -s @
+        traverse_directory "stand_up preview_make_link" "" | column -t -s @
 
         echo "Now linking"
-	stand_up "" make_link 0
+        traverse_directory "stand_up make_link" ""
 	;;
     down)
 	tear_down "" unmake_link
