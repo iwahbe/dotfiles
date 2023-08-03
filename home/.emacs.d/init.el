@@ -1016,6 +1016,12 @@ Operate on the region defined by START to END."
 ;; *.zsh files just fine, we fake it.
 (defalias 'zsh-mode 'sh-mode)
 
+
+;;; Major modes: sh-mode
+
+(elpaca flymake-shellcheck
+  (add-hook 'sh-mode-hook 'flymake-shellcheck-load))
+
 
 
 ;;; Terminal Emulation
