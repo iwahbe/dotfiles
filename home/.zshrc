@@ -1,12 +1,4 @@
-#!/bin/zsh
-if [[ "$INSIDE_EMACS" = vterm ]]; then
-    src="$VTERM_DATA"
-    if [[ -f "$src" ]]; then
-        source "$src"
-    else
-        echo "Could not find vterm fish file to source: $src"
-    fi
-fi
+#!/usr/bin/env zsh
 
 # Pre-append manually set paths to the path variable
 path=($user_path $path)
@@ -31,6 +23,20 @@ fi
 
 if exe_exists starship; then
     eval "$(starship init zsh)"
+fi
+
+# This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
+# and this works by appending to it.
+#
+# Terminal side configuration for libvterm.
+if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
+    local src
+    src="${EMACS_VTERM_PATH}/etc/emacs-vterm-zsh.sh"
+    if [[ -f "$src" ]]; then
+        source "$src"
+    else
+        echo "Could not find vterm fish file to source: $src"
+    fi
 fi
 
 local HIGHLIGHT="$HOME/.cache/zsh-syntax-highlighting"

@@ -36,9 +36,6 @@ Return RES."
 
 ;;; Cache
 
-;; TODO: Since we are using a config that is soft linked from another dir, we don't need
-;; to spend effort keeping $HOME/.emacs.d clean.
-
 (defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
   "The directory where a system local cache is stored.")
 
@@ -742,7 +739,6 @@ UNBOUND functions remain unchanged."
 	(tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))
         (json       . ("https://github.com/tree-sitter/tree-sitter-json"       "master" "src"))))
 
-;; TODO: We can reconsider this:
 ;; By default, treesit installs grammars in (expand-file-name "tree-sitter"
 ;; user-emacs-directory). We want to redirect this to a directory in
 ;; `=cache-directory'/tree-sitter.
@@ -1052,15 +1048,6 @@ ARG is passed to `vterm' without processing."
 	       '(and
 	         (derived-mode . vterm-mode)
 	         "^\\*vterm<.*>\\*$")))
-
-;; It is possible to integrate Emacs's `default-directory' with `vterm', but it requires
-;; shell side support. Specifically, the running shell needs to "source" a file that
-;; `vterm' includes. We make this easier by projecting that file into `vterm's
-;; environment.
-(setq vterm-environment
-      `(,(concat "VTERM_DATA="
-		 (expand-file-name "repos/emacs-libvterm/etc/emacs-vterm-zsh.sh"
-				   elpaca-directory))))
 
 
 
