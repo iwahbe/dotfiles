@@ -79,7 +79,7 @@ fi
 indent_to () {
     one_less=$(( $1 - 1 ))
     while [ $one_less -gt 0 ]; do
-        one_less=$(( $one_less - 1 ))
+        one_less=$(( one_less - 1 ))
         printf "|   "
     done
     printf "|-- %s\n" "$2"

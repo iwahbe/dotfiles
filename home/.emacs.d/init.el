@@ -316,6 +316,11 @@ This is calculated once so it doesn't change during redisplay")
 ;; a layer of "face" description to the loaded buffer. The ordered list of enabled themes
 ;; is defined in the variable `custom-enabled-themes'.
 
+
+(defvar =default-themes '((light . tsdh-light)
+                          (dark  . tsdh-dark))
+  "Themes that the system is aware of.")
+
 ;; When I load a theme, I generally only want that theme to apply. I don't want the
 ;; previous theme to effect the current experience. To solve this, I define a `load-theme'
 ;; wrapper called `=load-theme'.
@@ -328,11 +333,7 @@ Other currently loaded themes are disabled."
                                   (mapcar #'symbol-name
 				          (custom-available-themes))
                                   nil t))))
-  (load-theme (pcase theme
-		('light 'spacemacs-light)
-		('dark 'spacemacs-dark)
-		(other other))
-	      t)
+  (load-theme (alist-get theme =default-themes theme) t)
   ;; Disable previous themes
   (mapc #'disable-theme (cdr custom-enabled-themes)))
 
@@ -1200,6 +1201,19 @@ The opening \" should be after START and the closing \" should be before END."
 (elpaca rust-mode
   (setq rust-format-on-save t))
 (=add-hook rust-mode-hook #'lsp-ensure)
+
+
+
+;;; Major Modes: `terraform-mode'
+
+
+;; OPEN_SOURCE:
+;;
+;; * Currently, `terraform-format-on-save' is a destructive operation. We could replace
+;;   the current op with `replace-buffer-contents' to make it less destructive. This
+;;   should make the point jump around less.
+(elpaca terraform-mode
+  (setq terraform-format-on-save t))
 
 
 
