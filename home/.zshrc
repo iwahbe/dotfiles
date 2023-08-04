@@ -13,6 +13,14 @@ fi
 
 alias cl='clear; ls'
 
+if exe_exists pulumi; then
+    alias pu=pulumi
+fi
+
+if exe_exists terraform; then
+    alias tf=terraform
+fi
+
 if exe_exists gmake; then
     alias make=gmake
 fi
@@ -25,13 +33,12 @@ if exe_exists starship; then
     eval "$(starship init zsh)"
 fi
 
+# Terminal side configuration for libvterm.
+#
 # This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
 # and this works by appending to it.
-#
-# Terminal side configuration for libvterm.
 if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
-    local src
-    src="${EMACS_VTERM_PATH}/etc/emacs-vterm-zsh.sh"
+    local src="${EMACS_VTERM_PATH}etc/emacs-vterm-zsh.sh"
     if [[ -f "$src" ]]; then
         source "$src"
     else
@@ -45,4 +52,4 @@ if ! [[ -d "$HIGHLIGHT" ]]; then
     mkdir -d "$HOME/.cache"
     git clone 'https://github.com/zsh-users/zsh-syntax-highlighting.git' "$HIGHLIGHT"
 fi
-source $HIGHLIGHT/zsh-syntax-highlighting.zsh
+source "$HIGHLIGHT/zsh-syntax-highlighting.zsh"
