@@ -11,8 +11,7 @@ SRC_DEFAULT_DIR="$PWD/home" # This is chosen so running bin/config up "just work
 
 DST_DEFAULT_DIR="$HOME"
 
-# This is necessary because `read` hits EOF, which causes a non-zero exit code.
-read -r -d '' HELP <<- EOF || true
+HELP=$(cat <<-EOF
 	config [up|down|init] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
 
 	Recursivly link src to dst. Effert is made to make the minimum number of links.
@@ -23,6 +22,7 @@ read -r -d '' HELP <<- EOF || true
 
 	Both src and dst must be directories.
 EOF
+    )
 
 SRC_DIR=""
 DST_DIR=""
@@ -94,20 +94,16 @@ indent_to () {
 #
 # When "helper" is called, $1 will be "initial_arg".
 traverse_directory () {
-    local depth
-    if [ "$#" -lt 3 ]; then
-        depth=0
-    else
-        depth=$3
-    fi
-    if eval $1 \""$2"\" $depth; then
+    # $3 (depth) is optional, so we replace it with ${3-0} which means $3 with default
+    # value "0".
+    if eval "$1 \"$2\" \"${3-0}\""; then
         for entry in $('ls' -a "$SRC_DIR/$2"); do
 	    if [ "$entry" = "." ] || [ "$entry" = ".." ]; then
 		true # do nothing here
 	    elif [ "$2" = "" ]; then
-		traverse_directory  "$1" "$entry" $(( $depth + 1 ))
+		traverse_directory  "$1" "$entry" $(( ${3-0} + 1 ))
 	    else
-		traverse_directory "$1" "$2/$entry" $(( $depth + 1 ))
+		traverse_directory "$1" "$2/$entry" $(( ${3-0} + 1 ))
             fi
 	done
     fi
@@ -127,13 +123,13 @@ traverse_directory () {
 #             n no applicable operation
 #             - remove link
 stand_up () {
-    if [[ ! -e "$DST_DIR/$2" ]] && [[ ! -L "$DST_DIR/$2" ]]; then
+    if [ ! -e "$DST_DIR/$2" ] && [ ! -L "$DST_DIR/$2" ]; then
 	# dst doesn't exist, so link the entry.  This can be either a file or a
 	# directory.
 	$1 "$2" "$SRC_DIR/$2" "$DST_DIR/$2" "$3" +
-    elif [[ -L "$DST_DIR/$2" ]] && [[ "$(readlink $DST_DIR/$2)" == "$SRC_DIR/$2" ]]; then
+    elif [ -L "$DST_DIR/$2" ] && [ "$(readlink "$DST_DIR/$2")" = "$SRC_DIR/$2" ]; then
         $1 "$2" "$SRC_DIR/$2" "$DST_DIR/$2" "$3" '~'
-    elif [[ -d "$DST_DIR/$2" ]] && [[ -d "$SRC_DIR/$2" ]]; then
+    elif [ -d "$DST_DIR/$2" ] && [ -d "$SRC_DIR/$2" ]; then
         $1 "$2" "$SRC_DIR/$2" "$DST_DIR/$2" "$3" n
 	return 0 # Recurse
     fi
@@ -146,7 +142,7 @@ stand_up () {
 make_link () {
     if [ "$5" = '+' ]; then
         echo "Linking $1 to $3"
-        if ! ln -s -w $2 $3; then
+        if ! ln -s -w "$2" "$3"; then
             echo "Failed to link $2 to $3"
         fi
     elif [ "$5" = '-' ]; then
@@ -172,10 +168,10 @@ preview_make_link () {
 #
 # <command> takes the same arguments as it does in stand_up
 tear_down () {
-    if [[ -L "$DST_DIR/$2" ]] && [[ "$(readlink $DST_DIR/$2)" == "$SRC_DIR/$2" ]]; then
+    if [ -L "$DST_DIR/$2" ] && [ "$(readlink "$DST_DIR/$2")" = "$SRC_DIR/$2" ]; then
 	# Its a link to the file in our tree
 	$1 "$2" "$SRC_DIR/$1" "$DST_DIR/$2" "$3" -
-    elif [[ -d "$DST_DIR/$2" ]] && [[ -d "$SRC_DIR/$2" ]]; then
+    elif [ -d "$DST_DIR/$2" ] && [ -d "$SRC_DIR/$2" ]; then
 	# The dst directory exists, but not as a link. We recurse
 	$1 "$2" "$SRC_DIR/$1" "$DST_DIR/$2" "$3" n
         return 0
@@ -189,7 +185,7 @@ USER_IDENTITY_PATH="$USER_LOCAL_PATH/identity.sh"
 
 ensure_initialized () {
     if [ -f "$USER_DATA_PATH" ]; then
-        source "$USER_DATA_PATH"
+        . "$USER_DATA_PATH"
     else
         echo "Please run '$0 init' before attempting to link in files."
         exit 1
@@ -199,7 +195,7 @@ ensure_initialized () {
 # Apply the identity filter.
 # $1 is the direction, either "clean" or "smudge".
 apply_identity () {
-    if ! [[ -f $USER_IDENTITY_PATH ]]; then
+    if ! [ -f "$USER_IDENTITY_PATH" ]; then
         echo "internal error: Missing identity filter"
         exit 1
     fi
@@ -209,21 +205,21 @@ apply_identity () {
 
         # Because the shell does funny things with newlines, we manually check if the
         # newline exists and re-apply it if it does.
-        if [[ $(tail -c1 "$file" | wc -l) -gt 0 ]]; then
+        if [ "$(tail -c1 "$file" | wc -l)" -gt 0 ]; then
             eof="\n"
         else
             eof=''
         fi
 
-        printf '%s' "$content" | $USER_IDENTITY_PATH $1 > $file
-        if [[ "$eof" == "\n" ]]; then
-            printf "$eof" >> $file
+        printf '%s' "$content" | $USER_IDENTITY_PATH "$1" > "$file"
+        if [ "$eof" = "\n" ]; then
+            printf "$eof" >> "$file"
         fi
 
         # `git status` still shows changed files as "dirty", even when `git diff` shows
         # them as clean. We add such files to `git status` comes up clean as expected.
-        if [[ "$(git diff $file)" = "" ]]; then
-            git add $file
+        if [ "$(git diff "$file")" = "" ]; then
+            git add "$file"
         fi
     done
 }
@@ -232,8 +228,8 @@ confirm () {
     while true; do
         read -p "Are you sure? " yn
         case $yn in
-            [Yy]* ) return 0; break;;
-            [Nn]* ) return 1; break;;
+            [Yy]* ) return 0;;
+            [Nn]* ) return 1;;
             * ) echo "Please answer yes or no.";;
         esac
     done
