@@ -124,27 +124,21 @@ window:
 # Font configuration
 font:
 
-  # TODO:
-  #
-  # We should be able to set a global font and have it percolate through the config.  For
-  # example, this uses "Hack Nerd Font" but Emacs uses "Fira Code". This should be
-  # settable as part of `./bin/config init`.
-
   # Normal (roman) font face
   normal:
-    family: Hack Nerd Font
+    family: USER_FONT
     style: Regular
 
   bold:
-    family: Hack Nerd Font
+    family: USER_FONT
     style: Bold
 
   italic:
-    family: Hack Nerd Font
+    family: USER_FONT
     style: Italic
 
   bold_italic:
-    family: Hack Nerd Font
+    family: USER_FONT
     style: Bold Italic
 
   # Point size

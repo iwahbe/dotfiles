@@ -910,7 +910,7 @@ Operate on the region defined by START to END."
 (custom-theme-set-faces
  'user
  '(variable-pitch ((t (:family "Helvetica"))))
- '(fixed-pitch ((t ( :family "Fira Code Retina"))))
+ '(fixed-pitch ((t ( :family "USER_FONT"))))
  '(org-block ((t (:inherit fixed-pitch))))
  '(org-code ((t (:inherit (shadow fixed-pitch)))))
  '(org-document-info ((t (:foreground "dark orange"))))
