@@ -11,8 +11,12 @@ SRC_DEFAULT_DIR="$PWD/home" # This is chosen so running bin/config up "just work
 
 DST_DEFAULT_DIR="$HOME"
 
+USER_LOCAL_PATH="$PWD/.local"
+USER_DATA_PATH="$USER_LOCAL_PATH/user-data.sh"
+USER_IDENTITY_PATH="$USER_LOCAL_PATH/identity.sh"
+
 HELP=$(cat <<-EOF
-	config [up|down|init|env] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
+	config <up|down|env|init> [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
 
 	Recursivly link src to dst. Effert is made to make the minimum number of links.
 	That means that directories are linked if possible, otherwise their content is
@@ -24,29 +28,15 @@ HELP=$(cat <<-EOF
 EOF
     )
 
-SRC_DIR=""
-DST_DIR=""
-
-if [ $# -gt 1 ]; then
-    SRC_DIR=$2
-fi
-if [ $# -gt 2 ]; then
-    DST_DIR=$3
-fi
-
-
-if [ "$SRC_DIR" = "" ]; then
-    # If the source directory is empty, apply the default.
-    SRC_DIR="$SRC_DEFAULT_DIR"
-elif [[ ! "$SRC_DIR" == /* ]]; then
+SRC_DIR="${2-$SRC_DEFAULT_DIR}"
+if [[ ! "$SRC_DIR" == /* ]]; then
     # If the source directory doesn't start with a slash, prefix it with the current
     # directory
     SRC_DIR="$PWD/$SRC_DIR"
 fi
 
-if [ "$DST_DIR" = "" ]; then
-    DST_DIR="$DST_DEFAULT_DIR"
-elif [[ ! "$DST_DIR" == /* ]]; then
+DST_DIR="${3-$DST_DEFAULT_DIR}"
+if [[ ! "$DST_DIR" == /* ]]; then
     # If a relative directory was given, set it relative to the current directory.
     DST_DIR="$PWD/$DST_DIR"
 fi
@@ -99,7 +89,7 @@ traverse_directory () {
     if eval "$1 \"$2\" \"${3-0}\""; then
         for entry in $('ls' -a "$SRC_DIR/$2"); do
 	    if [ "$entry" = "." ] || [ "$entry" = ".." ]; then
-		true # do nothing here
+                continue
 	    elif [ "$2" = "" ]; then
 		traverse_directory  "$1" "$entry" $(( ${3-0} + 1 ))
 	    else
@@ -155,12 +145,17 @@ make_link () {
 #
 # A potential argument for stand_up_helper
 preview_make_link () {
+    display_name="$(basename "$1")"
+    if [ -d "$SRC_DIR/$1" ]; then
+        display_name="$display_name/"
+    fi
+
     if [ "$1" = "" ]; then
         echo "$SRC_DIR/ -> $DST_DIR/"
     elif [ "$5" = n ]; then
-        indent_to "$4" "$1"
+        indent_to "$4" "$display_name"
     else
-        indent_to "$4" "$1 @ $5"
+        indent_to "$4" "$display_name @ $5"
     fi
 }
 
@@ -178,10 +173,6 @@ tear_down () {
     fi
     return 1
 }
-
-USER_LOCAL_PATH="$PWD/.local"
-USER_DATA_PATH="$USER_LOCAL_PATH/user-data.sh"
-USER_IDENTITY_PATH="$USER_LOCAL_PATH/identity.sh"
 
 # IDENTITY_VARS drives the set of git identity filters created and manipulated by this
 # script.
