@@ -12,7 +12,7 @@ SRC_DEFAULT_DIR="$PWD/home" # This is chosen so running bin/config up "just work
 DST_DEFAULT_DIR="$HOME"
 
 HELP=$(cat <<-EOF
-	config [up|down|init] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
+	config [up|down|init|env] [src=$SRC_DEFAULT_DIR] [dst=$DST_DEFAULT_DIR]
 
 	Recursivly link src to dst. Effert is made to make the minimum number of links.
 	That means that directories are linked if possible, otherwise their content is
@@ -183,6 +183,20 @@ USER_LOCAL_PATH="$PWD/.local"
 USER_DATA_PATH="$USER_LOCAL_PATH/user-data.sh"
 USER_IDENTITY_PATH="$USER_LOCAL_PATH/identity.sh"
 
+# IDENTITY_VARS drives the set of git identity filters created and manipulated by this
+# script.
+#
+# ask_user_data fills out these variables by interactively querying the user for their
+# values.
+#
+# write_user_data writes out these values for use in other commands.
+#
+# sed_identity_filter creates a sed pipeline that translates these variables for their
+# values and vice versa.
+#
+# The format is VAR='prompt' where prompt is used to ask the user for VAR.
+#
+# This solution uses lots of `eval`s, but it allows me to have a list in POSIX sh.
 IDENTITY_VARS=$(cat <<EOF
 USER_NAME='What is your full name (example "Jane Smith")? '
 USER_EMAIL='What is your email address? '
@@ -198,12 +212,12 @@ sed_identity_filter () {
         var=${line%=*}
         case "$1" in
             clean)
-                before=$(eval "echo $"$var"")
+                before=$(eval "echo $""$var")
                 after="$var"
                 ;;
             smudge)
                 before="$var"
-                after=$(eval "echo $"$var"")
+                after=$(eval "echo $""$var")
                 ;;
             *)
                 echo "Invalid $0 arg: $1"
@@ -224,8 +238,17 @@ ask_user_data () {
     for line in $IDENTITY_VARS; do
         var=${line%=*}
         query=${line#*=}
-        eval "printf $query"
+        eval 'prev=${'"$var"'-""}'
+        eval "printf $query%s "'"${'"$var:+(default \\\"\$$var\\\")}"' "'
         read -r "${var?}"
+        if [ "$(eval "echo $""$var")" = "" ]; then
+            if [ "$prev" = "" ]; then
+                echo "$var: cannot be empty"
+                return 1
+            else
+                eval "$var"='"$prev"'
+            fi
+        fi
     done
     IFS="$oldIFS"
     return 0
@@ -285,7 +308,8 @@ apply_identity () {
 
 confirm () {
     while true; do
-        read -p "Are you sure? " yn
+        printf 'Are you sure? '
+        read -r yn
         case $yn in
             [Yy]* ) return 0;;
             [Nn]* ) return 1;;
@@ -321,6 +345,10 @@ case $1 in
         fi
 	;;
     init)
+        if [ -f "$USER_DATA_PATH" ]; then
+            . "$USER_DATA_PATH"
+        fi
+
         if ! ask_user_data; then
             echo "Canceled"
             exit 1
@@ -364,6 +392,11 @@ EOF
 
         # Now apply the identity filter we have just created manually
         apply_identity smudge
+        ;;
+    env)
+        ensure_initialized
+        # Display all but the first line of the path.
+        sed '1d' "$USER_DATA_PATH"
         ;;
     *)
 	echo "Unknown command \"$1\""
