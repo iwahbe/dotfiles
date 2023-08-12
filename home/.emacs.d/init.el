@@ -26,6 +26,14 @@ It is optional to quote MODE."
 			 ,hook))
 	hooks)))
 
+(defun =advise-once (symbol where function &optional props)
+  "`advise-add' a function that will only trigger once.
+
+SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
+  ;; Borrowed from https://emacs.stackexchange.com/questions/26251/one-time-advice
+  (advice-add symbol :after (lambda (&rest _) (advice-remove symbol function)))
+  (advice-add symbol where function props))
+
 (defmacro =dbg (form)
   "Print FORM => RES where res is what FORM evaluate to.
 Return RES."
@@ -875,10 +883,25 @@ Operate on the region defined by START to END."
 
 ;;; Major Modes: `org-mode'
 
+(defvar =org-babel-languages
+  '(emacs-lisp
+    shell)
+  "Languages loaded by `org-babel-do-load-languages' before a org src block is executed.")
+
 ;; https://orgmode.org is a staple of Emacs, providing a todo list, calendar, literate
 ;; programming environment and much more. `org-mode' comes built-in to Emacs, but I think
 ;; it's worth opting into a more developed version.
-(elpaca org)
+(elpaca org
+  ;; Loading just emacs-lisp and shell takes 0.08 seconds. We don't want to do this during
+  ;; startup, so we defer loading until it is used.
+  (=advise-once
+   #'org-babel-execute-src-block
+   :before (lambda (&rest _)
+             (org-babel-do-load-languages
+              'org-babel-load-languages
+              (mapcar (lambda (lang)
+                        (cons lang t))
+                      =org-babel-languages)))))
 
 ;; `org-mode' is structured around putting all your =.org= files into a single
 ;; directory. It isn't required, but I generally do it anyway. The default value is
@@ -1016,7 +1039,6 @@ Operate on the region defined by START to END."
 ;; `zsh-mode' when activating `org-edit-special'. Since the built-in `zsh-mode' can handle
 ;; *.zsh files just fine, we fake it.
 (defalias 'zsh-mode 'sh-mode)
-
 
 ;;; Major modes: sh-mode
 
