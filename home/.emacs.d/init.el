@@ -316,6 +316,15 @@ This is calculated once so it doesn't change during redisplay")
 (setq savehist-file (=cache-file "savehist"))
 (savehist-mode +1)
 
+;; Add smooth scrolling to GUI Emacs.
+(cond
+ ;; Introduced in Emacs 29.1. This is much smoother.
+ ((functionp #'pixel-scroll-precision-mode)
+  (pixel-scroll-precision-mode +1))
+ ;; Introduced in Emacs 26.1
+ ((functionp #'pixel-scroll-mode)
+  (pixel-scroll-mode +1)))
+
 
 
 ;;; Themes
@@ -884,7 +893,8 @@ Operate on the region defined by START to END."
 ;;; Major Modes: `org-mode'
 
 (defvar =org-babel-languages
-  '(emacs-lisp
+  '(calc
+    emacs-lisp
     shell)
   "Languages loaded by `org-babel-do-load-languages' before a org src block is executed.")
 
@@ -1082,6 +1092,17 @@ ARG is passed to `vterm' without processing."
 
 
 
+;;; Major Modes: `bibtex-mode'
+
+;; This is a major mode built into Emacs, and I'm happy to used the version shipped with
+;; the running Emacs instance.
+
+;; Setup format on save.
+(=add-hook bibtex-mode-hook
+  (lambda ()
+    (add-hook 'before-save-hook #'bibtex-reformat nil t)))
+(setq bibtex-align-at-equal-sign t)
+
 ;;; Major Modes: `go-mode'
 
 (elpaca go-mode)
@@ -1089,6 +1110,9 @@ ARG is passed to `vterm' without processing."
 (=add-hook go-mode-hook
   #'=lsp-ensure
   (apply-partially #'add-hook 'before-save-hook #'gofmt-before-save nil t))
+
+(with-eval-after-load 'go-mode
+  (define-key go-mode-map (kbd "C-c s") #'=go-invert-string))
 
 (defun =go-invert-string (start end)
   "Invert the string at point.
