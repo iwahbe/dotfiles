@@ -995,7 +995,9 @@ Operate on the region defined by START to END."
 	org-roam-db-location (=cache-file "roam.db" "org"))
   ;; `org-roam-node-list' is called before a list of nodes is displayed to the user. We
   ;; use it as a prompt to turn on database syncing without slowing down startup.
-  (advice-add #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1))))
+  (=advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
+  (setq org-cite-global-bibliography
+        (list (expand-file-name "global.bib" org-roam-directory))))
 
 ;; This is a utility function to resolve GH links to their issue name.
 
