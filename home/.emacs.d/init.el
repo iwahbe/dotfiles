@@ -1224,7 +1224,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; Rust is pretty simple, we want `rust-mode' and then a LSP on top:
 (elpaca rust-mode
   (setq rust-format-on-save t))
-(=add-hook rust-mode-hook #'lsp-ensure)
+(=add-hook rust-mode-hook #'=lsp-ensure)
 
 
 
