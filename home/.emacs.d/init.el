@@ -530,11 +530,10 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 ;; [[https://github.com/Wilfred/helpful][Wilfred/helpful]] does.
 
 (elpaca helpful
-  (global-set-key [remap describe-function] #'helpful-callable)
-  (global-set-key [remap describe-key] #'helpful-key)
-  (global-set-key [remap describe-variable] #'helpful-variable)
-  (global-set-key [remap describe-command] #'helpful-command))
-
+  (keymap-global-set "<remap> <describe-function>" #'helpful-callable)
+  (keymap-global-set "<remap> <describe-key>" #'helpful-key)
+  (keymap-global-set "<remap> <describe-variable>" #'helpful-variable)
+  (keymap-global-set "<remap> <describe-command>" #'helpful-command))
 
 
 ;; Emacs includes the excellent [[help:eldoc-mode][eldoc]], which displays information
@@ -559,7 +558,7 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 ;; It defines `gtq-goto', which brings up a model interface for quickly navigating among
 ;; characters.
-(global-set-key (kbd "C-'") #'gtq-goto)
+(keymap-global-set "C-'" #'gtq-goto)
 
 
 
@@ -667,7 +666,7 @@ UNBOUND functions remain unchanged."
   (project-switch-project (when-let ((p (project-current)))
                             (project-root p))))
 
-(global-set-key (kbd "C-x P") #'=project-command-pallet)
+(keymap-global-set "C-x P" #'=project-command-pallet)
 
 
 
