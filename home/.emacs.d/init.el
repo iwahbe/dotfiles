@@ -52,7 +52,6 @@ plist).  key must satisfy `key-valid-p'.  function must satisfy
     (dolist (key keys)
       (let ((command (car key))
             (function (cadr key)))
-        (cl-assert (functionp function) t)
         (keymap-set m command function)))
     m))
 
@@ -825,12 +824,28 @@ UNBOUND functions remain unchanged."
 ;; https://microsoft.github.io/language-server-protocol/. `eglot' is the built in LSP
 ;; consumer for Emacs. It doesn't require much setup.
 
-(defun =lsp-ensure ()
+(defun =lsp--ensure ()
   "Turn on the mode appropriate LSP mode."
   ;; `eglot-ensure' needs to be called via each `major-mode's startup hook. Because of the
   ;; blocking nature of `eglot-ensure', we provide wrapper function that will allow the
   ;; buffer to display before enabling the LSP server.
   (run-with-idle-timer 0 nil #'eglot-ensure))
+
+(=define-keymap =lsp-map
+  "Common functions for LSP."
+  ("a" #'eglot-code-actions :desc "code action")
+  ("r" #'eglot-rename :desc "rename"))
+
+(cl-defmacro =lsp-declare (mode &key require)
+  "Declare that MODE should launch a LSP server.
+
+REQUIRE is the feature provided by the package.  It is assumed to
+be the same as mode if not specified."
+  `(with-eval-after-load ',(or require mode)
+     ;; Ensure that we have `eglot' up and running on new files.
+     (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'=lsp--ensure)
+     ;; Create a common binding to commonly used LSP functions.
+     (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" =lsp-map)))
 
 
 
@@ -1095,12 +1110,12 @@ Operate on the region defined by START to END."
       (delete-region (org-element-property :begin ctx)
 		     (org-element-property :end ctx))
       (org-insert-link link link description))))
-(with-eval-after-load 'org-roam
-  (=define-keymap =org-leader-map
-    "My globally accessible org map."
-    :global "M-o"
-    ("i" #'org-roam-node-insert :desc "insert node link")
-    ("f" #'org-roam-node-find :desc "find node")))
+
+(=define-keymap =org-leader-map
+  "My globally accessible org map."
+  :global "M-o"
+  ("i" #'org-roam-node-insert :desc "insert node link")
+  ("f" #'org-roam-node-find :desc "find node"))
 
 (with-eval-after-load 'org-mode
   (keymap-set org-mode-map "C-l M-l" #'=org-describe-link))
@@ -1164,9 +1179,9 @@ ARG is passed to `vterm' without processing."
 ;;; Major Modes: `go-mode'
 
 (elpaca go-mode)
+(=lsp-declare go-mode)
 
 (=add-hook go-mode-hook
-  #'=lsp-ensure
   (apply-partially #'add-hook 'before-save-hook #'gofmt-before-save nil t))
 
 (with-eval-after-load 'go-mode
@@ -1297,7 +1312,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; `typescript-ts-mode' is loaded. By including the above directly in our init file, we
 ;; get the desired behavior.
 
-(=add-hook 'typescript-ts-mode-hook #'=lsp-ensure)
+(=lsp-declare typescript-ts-mode)
 
 
 
@@ -1306,7 +1321,8 @@ The opening \" should be after START and the closing \" should be before END."
 ;; Rust is pretty simple, we want `rust-mode' and then a LSP on top:
 (elpaca rust-mode
   (setq rust-format-on-save t))
-(=add-hook rust-mode-hook #'=lsp-ensure)
+
+(=lsp-declare rust-mode)
 
 
 
@@ -1341,8 +1357,11 @@ The opening \" should be after START and the closing \" should be before END."
 ;; The largest in terms of scope (but not code) is a special mode for Pulumi YAML:
 (elpaca (pulumi-yaml :host github :repo "pulumi/pulumi-lsp"
                      :files ("editors/emacs/*"))
-  (require 'pulumi-yaml)
-  (=add-hook pulumi-yaml-mode-hook #'=lsp-ensure))
+  (=lsp-declare pulumi-yaml-mode :require pulumi-yaml)
+  (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yaml") 'pulumi-yaml-mode))
+  (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yml") 'pulumi-yaml-mode))
+  (add-to-list 'auto-mode-alist (cons (regexp-quote "Main.yaml") 'pulumi-yaml-mode)))
+
 
 ;; Pulumi defines its providers with a
 ;; https://www.pulumi.com/docs/guides/pulumi-packages/schema/. This function follows
