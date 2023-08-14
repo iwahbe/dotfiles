@@ -53,7 +53,7 @@ plist).  key must satisfy `key-valid-p'.  function must satisfy
       (let ((command (car key))
             (function (cadr key)))
         (cl-assert (functionp function) t)
-        (define-key m command function)))
+        (keymap-set m command function)))
     m))
 
 (defmacro =define-keymap (name &rest keys)
@@ -695,7 +695,7 @@ UNBOUND functions remain unchanged."
   ;; This unbinds "RET" in the map `corfu' uses during completion. The trailing t ensures
   ;; that we are removing this binding, not just setting it to nil. This allows fallback
   ;; to other keymaps (such as the `self-insert-command' in the `global-mode-map').
-  (define-key corfu-map (kbd "RET") nil t)
+  (keymap-unset corfu-map "RET" t)
 
   ;; I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't seem
   ;; to be a binding that applies to both the terminal and the GUI, so I apply a separate
@@ -703,7 +703,7 @@ UNBOUND functions remain unchanged."
   (dolist (spc '("C-@" "C-SPC"))
     ;; C-@ works in the terminal, but not in GUI.
     ;; C-SPC works in GUI, but not in the terminal.
-    (define-key corfu-map (kbd spc) #'corfu-insert)))
+    (keymap-set corfu-map spc #'corfu-insert)))
 
 ;; `corfu' only works on a GUI. When I don't have access to a GUI, I load
 ;; https://codeberg.org/akib/emacs-corfu-terminal to get the graphics to stay consistent.
@@ -740,20 +740,20 @@ UNBOUND functions remain unchanged."
 
 
 (elpaca consult
-  (global-set-key [remap goto-line] #'consult-goto-line)
-  (global-set-key [remap Info-search] #'consult-info)
-  (global-set-key [remap yank-pop] #'consult-yank-pop)
-  (global-set-key [remap imenu] #'consult-imenu)
+  (keymap-global-set "<remap> <goto-line>" #'consult-goto-line)
+  (keymap-global-set "<remap> <Info-search>" #'consult-info)
+  (keymap-global-set "<remap> <yank-pop>" #'consult-yank-pop)
+  (keymap-global-set "<remap> <imenu>" #'consult-imenu)
 
   ;; By default, consult applies the prefix ?# to all registers, which
   ;; is not necessary.
   (setq consult-register-prefix nil)
 
-  (global-set-key [remap jump-to-register] #'consult-register-load)
-  (global-set-key [remap switch-to-buffer] #'consult-buffer)
-  (global-set-key [remap switch-to-buffer-other-frame] #'consult-buffer-other-frame)
-  (global-set-key [remap switch-to-buffer-other-window] #'consult-buffer-other-window)
-  (define-key isearch-mode-map [remap isearch-edit-string] #'consult-isearch-history))
+  (keymap-global-set "<remap> <jump-to-register>" #'consult-register-load)
+  (keymap-global-set "<remap> <switch-to-buffer>" #'consult-buffer)
+  (keymap-global-set "<remap> <switch-to-buffer-other-frame>" #'consult-buffer-other-frame)
+  (keymap-global-set "<remap> <switch-to-buffer-other-window>" #'consult-buffer-other-window)
+  (keymap-set isearch-mode-map "<remap> <isearch-edit-string>" #'consult-isearch-history))
 
 
 
@@ -1095,15 +1095,15 @@ Operate on the region defined by START to END."
       (delete-region (org-element-property :begin ctx)
 		     (org-element-property :end ctx))
       (org-insert-link link link description))))
-
-(=define-keymap =org-leader-map
-  "My globally accessible org map."
-  :global "M-o"
-  ("i" #'org-roam-node-insert :desc "insert node link")
-  ("f" #'org-roam-node-find :desc "find node"))
+(with-eval-after-load 'org-roam
+  (=define-keymap =org-leader-map
+    "My globally accessible org map."
+    :global "M-o"
+    ("i" #'org-roam-node-insert :desc "insert node link")
+    ("f" #'org-roam-node-find :desc "find node")))
 
 (with-eval-after-load 'org-mode
-  (define-key org-mode-map (kbd "C-l M-l") #'=org-describe-link))
+  (keymap-set org-mode-map "C-l M-l" #'=org-describe-link))
 
 ;; Emacs has `sh-mode', but no `zsh-mode'. Unfortunately, `org-mode' expects a mode called
 ;; `zsh-mode' when activating `org-edit-special'. Since the built-in `zsh-mode' can handle
@@ -1170,7 +1170,7 @@ ARG is passed to `vterm' without processing."
   (apply-partially #'add-hook 'before-save-hook #'gofmt-before-save nil t))
 
 (with-eval-after-load 'go-mode
-  (define-key go-mode-map (kbd "C-c s") #'=go-invert-string))
+  (keymap-set go-mode-map "C-c s" #'=go-invert-string))
 
 (defun =go-invert-string (start end)
   "Invert the string at point.
