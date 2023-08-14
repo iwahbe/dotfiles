@@ -34,6 +34,55 @@ SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
   (advice-add symbol :after (lambda (&rest _) (advice-remove symbol function)))
   (advice-add symbol where function props))
 
+(defun =make-keymap (name keys)
+  "Define a `keymap' called NAME with KEYS.
+
+KEYS is a list of keys where each key is a (key . function &rest
+plist).  key must satisfy `key-valid-p'.  function must satisfy
+`functionp' and should be interactive.. For example:
+
+    (\"u\" #\\'upcase-word :desc \"Uppercase the work\")"
+  (let ((m (make-keymap
+            (concat name " - "
+                    (mapconcat (lambda (key)
+                                 (concat "[" (car key) "] "
+                                         (or (plist-get (cddr key) :desc)
+                                             (symbol-name (cadr key)))))
+                               keys "\t")))))
+    (dolist (key keys)
+      (let ((command (car key))
+            (function (cadr key)))
+        (cl-assert (functionp function) t)
+        (define-key m command function)))
+    m))
+
+(defmacro =define-keymap (name &rest keys)
+  "Define a self-describing keymap called NAME consisting of KEYS.
+
+See `=make-keymap' for details on what KEYS are."
+  (declare (indent defun))
+  (let* ((keys keys)
+         (description (if (stringp (car-safe keys))
+                          (prog1 (car-safe keys)
+                            (setq keys (cdr keys)))
+                        (format "A self-describing %s keymap" (symbol-name name))))
+         (global (when (eq (car-safe keys) :global)
+                   (when (null (cadr keys))
+                     (error ":global takes a key as its argument"))
+                   (unless (key-valid-p (cadr keys))
+                     (error ":global - invalid key"))
+                   (prog1 (cadr keys)
+                     (setq keys (cddr keys))))))
+    `(let ((m (=make-keymap ,(symbol-name name)
+                            (list ,@(mapcar
+                                     (lambda (key)
+                                       `(list ,@key))
+                                     keys)))))
+       (defvar ,name m ,description)
+       (setq ,name m)
+       ,(when global `(keymap-global-set ,global ,name))
+       nil)))
+
 (defmacro =dbg (form)
   "Print FORM => RES where res is what FORM evaluate to.
 Return RES."
@@ -1046,6 +1095,15 @@ Operate on the region defined by START to END."
       (delete-region (org-element-property :begin ctx)
 		     (org-element-property :end ctx))
       (org-insert-link link link description))))
+
+(=define-keymap =org-leader-map
+  "My globally accessible org map."
+  :global "M-o"
+  ("i" #'org-roam-node-insert :desc "insert node link")
+  ("f" #'org-roam-node-find :desc "find node"))
+
+(with-eval-after-load 'org-mode
+  (define-key org-mode-map (kbd "C-l M-l") #'=org-describe-link))
 
 ;; Emacs has `sh-mode', but no `zsh-mode'. Unfortunately, `org-mode' expects a mode called
 ;; `zsh-mode' when activating `org-edit-special'. Since the built-in `zsh-mode' can handle
