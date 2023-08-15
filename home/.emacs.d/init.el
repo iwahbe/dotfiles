@@ -155,7 +155,7 @@ Return RES."
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 
-;; We redefine =display-startup-echo-area-message=, since there is no built in way to
+;; We redefine `display-startup-echo-area-message', since there is no built in way to
 ;; disable it. To make sure I am cognizant of start-up time, I have this set to display
 ;; the load time of Emacs.
 
@@ -168,6 +168,7 @@ Return RES."
 	    (time-subtract
 	     elpaca-after-init-time
 	     before-init-time))))
+
 
 
 ;;; Splash Screen

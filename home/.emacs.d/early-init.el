@@ -20,9 +20,6 @@
 	    (setq gc-cons-threshold 16777216 ; 16mb
 		  gc-cons-percentage 0.1)))
 
-;; By default, Emacs thinks in terms of text columns and lines. This isn't great when
-;; computing frame sizes for graphical purposes. We want to think in pixels on GUIs.
-(setq frame-resize-pixelwise t)
 
 ;; It is important to set graphical elements in early-init.el, since otherwise they take
 ;; effect after Emacs initializes graphics and the window viably flickers or resizes
@@ -30,15 +27,18 @@
 
 (tool-bar-mode -1)
 (menu-bar-mode -1)
-(setq frame-resize-pixelwise t
-      ;; We set the font here to work around a bug that hides the echo area
-      ;; when a font is set after the frame loads.
-      default-frame-alist '((font . "USER_FONT")
-		            (vertical-scroll-bars . nil)
-		            (horizontal-scroll-bars . nil))
-      initial-frame-alist
-      '((width . 0.5) (height . 1.0)
-        (top . 0) (left . 1.0)))
+(setq
+ ;; By default, Emacs thinks in terms of text columns and lines. This isn't great when
+ ;; computing frame sizes for graphical purposes. We want to think in pixels on GUIs.
+ frame-resize-pixelwise t
+ ;; We set the font here to work around a bug that hides the echo area
+ ;; when a font is set after the frame loads.
+ default-frame-alist '((font . "USER_FONT")
+		       (vertical-scroll-bars . nil)
+		       (horizontal-scroll-bars . nil))
+ initial-frame-alist
+ '((width . 0.5) (height . 1.0)
+   (top . 0) (left . 1.0)))
 
 ;; We need to disable package.el, Emacs's default package manager. Since package.el sets
 ;; up existing packages before init.el runs, we need to do this in early-init.el.
