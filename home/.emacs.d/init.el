@@ -34,53 +34,42 @@ SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
   (advice-add symbol :after (lambda (&rest _) (advice-remove symbol function)))
   (advice-add symbol where function props))
 
-(defun =make-keymap (name keys)
-  "Define a `keymap' called NAME with KEYS.
-
-KEYS is a list of keys where each key is a (key . function &rest
-plist).  key must satisfy `key-valid-p'.  function must satisfy
-`functionp' and should be interactive.. For example:
-
-    (\"u\" #\\'upcase-word :desc \"Uppercase the work\")"
-  (let ((m (make-keymap
-            (concat name " - "
-                    (mapconcat (lambda (key)
-                                 (concat "[" (car key) "] "
-                                         (or (plist-get (cddr key) :desc)
-                                             (symbol-name (cadr key)))))
-                               keys "\t")))))
-    (dolist (key keys)
-      (let ((command (car key))
-            (function (cadr key)))
-        (keymap-set m command function)))
-    m))
-
-(defmacro =define-keymap (name &rest keys)
+(require 'cl-lib)
+(cl-defmacro =define-keymap (name &rest keys &key global parent &allow-other-keys)
   "Define a self-describing keymap called NAME consisting of KEYS.
 
-See `=make-keymap' for details on what KEYS are."
-  (declare (indent defun))
-  (let* ((keys keys)
-         (description (if (stringp (car-safe keys))
-                          (prog1 (car-safe keys)
-                            (setq keys (cdr keys)))
-                        (format "A self-describing %s keymap" (symbol-name name))))
-         (global (when (eq (car-safe keys) :global)
-                   (when (null (cadr keys))
-                     (error ":global takes a key as its argument"))
-                   (unless (key-valid-p (cadr keys))
-                     (error ":global - invalid key"))
-                   (prog1 (cadr keys)
-                     (setq keys (cddr keys))))))
-    `(let ((m (=make-keymap ,(symbol-name name)
-                            (list ,@(mapcar
-                                     (lambda (key)
-                                       `(list ,@key))
-                                     keys)))))
+To bind the keymap to a global value, pass a binding to GLOBAL.
+
+To have the defined keymap inherit from a parent, set PARENT.
+
+KEYS are (binding function) lists."
+  (let (description)
+    ;; Grab the description if present
+    (when-let (d (car-safe keys))
+      (when (stringp d)
+        (setq description d
+              keys (cdr keys))))
+    ;; Process keys, removing known keywords and error-ing on unknown keywords.
+    (setq keys (let (args)
+                 (while keys
+                   (if (keywordp (car keys))
+                       (progn
+                         (pcase (car keys)
+                           (:global (setq global (cadr keys)))
+                           (:parent (setq parent (cadr parent)))
+                           (other (error "Unknown property %s" other)))
+                         (setq keys (cddr keys)))
+                     (push (car keys) args)
+                     (setq keys (cdr keys))))
+                 (reverse args)))
+    (message "Parent = %s" parent)
+    `(let ((m (define-keymap
+                :parent ,parent
+                ,@keys)))
        (defvar ,name m ,description)
        (setq ,name m)
        ,(when global `(keymap-global-set ,global ,name))
-       nil)))
+       ,name)))
 
 (defmacro =dbg (form)
   "Print FORM => RES where res is what FORM evaluate to.
@@ -537,9 +526,9 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
   (keymap-global-set "<remap> <describe-command>" #'helpful-command))
 
 
-;; Emacs includes the excellent [[help:eldoc-mode][eldoc]], which displays information
-;; about the object at point in the echo area.  For larger (or more stable) documentation,
-;; Eldoc has `eldoc-doc-buffer', which can hold unabridged documentation.
+;; Emacs includes the excellent `eldoc-mode', which displays information about the object
+;; at point in the echo area.  For larger (or more stable) documentation, Eldoc has
+;; `eldoc-doc-buffer', which can hold unabridged documentation.
 
 ;; By default, both the buffer and echo area are used when the buffer is displayed. This
 ;; is probably a safe default, but it is not ideal. Ideally, the existence of the doc
@@ -547,6 +536,11 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 ;; Don't display in the echo area if the doc buffer is visable
 (setq eldoc-echo-area-prefer-doc-buffer t)
+
+
+(elpaca which-key
+  (setq which-key-idle-secondary-delay 0.0000)
+  (which-key-mode))
 
 
 
@@ -610,28 +604,6 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 ;; the cache directory.
 (setq project-list-file (=cache-file "projects"))
 
-(defun =project-set-switch-commands (bound unbound)
-  "Set `project-switch-commands' to the combined BOUND and UNBOUND.
-
-BOUND items are run with `default-directory' set to the default
-directory of the current project.
-
-UNBOUND functions remain unchanged."
-  ;; This enables commands like =magit= and =vterm= to kick off in the new project.
-  (setq project-switch-commands
-        (append
-	 (mapcar
-	  (lambda (x) (cons
-		       (lambda ()
-			 (interactive)
-			 (let ((default-directory
-			        (or project-current-directory-override
-				    default-directory)))
-			   (funcall-interactively (car x))))
-		       (cdr x)))
-	  bound)
-         unbound)))
-
 (defun =project-switch-to-most-recent ()
   "Switch to the most recently used buffer in a project."
   (interactive)
@@ -646,28 +618,35 @@ UNBOUND functions remain unchanged."
     (sit-for 1)
     (project-switch-project project-current-directory-override)))
 
+(defun =project-switch-project (dir)
+  "\"Switch\" to another project by running an Emacs command.
+The available commands are presented as a dispatch menu
+made from `=project-prefix-map'.
 
-;; We now set the actual command pallet.
-(=project-set-switch-commands
- '((project-find-file "Find file" "f")
-   (consult-find "`find` file" "C-f")
-   (consult-ripgrep "Find regexp" "g")
-   (magit "Git" "v")
-   (=project-vterm "Shell" "t"))
- '((=project-switch-to-most-recent "Most recent" "r")))
+When called in a program, it will use the project corresponding
+to directory DIR."
+  ;; This approach unifies `project-switch-commands' and the `project-prefix-map'.
+  (interactive (list (funcall project-prompter)))
+  (let ((project-current-directory-override dir))
+    ;; We use `which-key-show-keymap' to provide a "dispatch menu", and to block on input.
+    (which-key-show-keymap '=project-prefix-map)
+    ;; Typing a command on the `which-key' menu just dismisses the menu, so we recover the
+    ;; command from `recent-keys' and replay it on our key map.
+    (call-interactively
+     (keymap-lookup =project-prefix-map
+                    (key-description
+                     (vector (let ((recent (recent-keys)))
+                               (aref recent (1- (length recent))))))))))
 
-;; To avoid duplicating commands in the project map, we provide a mapping for quick access
-;; to the project switcher against the current project.
-;;
-;; TODO: We should really merge `=project-set-switch-commands' to effect both
-;; `project-switch-commands' and the C-x p "" command map.
-(defun =project-command-pallet ()
-  "Run the project switcher in the current project."
-  (interactive)
-  (project-switch-project (when-let ((p (project-current)))
-                            (project-root p))))
-
-(keymap-global-set "C-x P" #'=project-command-pallet)
+(=define-keymap =project-prefix-map
+  :global "C-x p"
+  :parent 'project-prefix-map
+  "C-f" #'consult-find
+  "g" #'consult-ripgrep
+  "v" #'magit
+  "t" #'=project-vterm
+  "r" #'=project-switch-to-most-recent
+  "p" #'=project-switch-project)
 
 
 
@@ -833,8 +812,8 @@ UNBOUND functions remain unchanged."
 
 (=define-keymap =lsp-map
   "Common functions for LSP."
-  ("a" #'eglot-code-actions :desc "code action")
-  ("r" #'eglot-rename :desc "rename"))
+  "a" #'eglot-code-actions
+  "r" #'eglot-rename)
 
 (cl-defmacro =lsp-declare (mode &key require)
   "Declare that MODE should launch a LSP server.
@@ -1114,8 +1093,8 @@ Operate on the region defined by START to END."
 (=define-keymap =org-leader-map
   "My globally accessible org map."
   :global "M-o"
-  ("i" #'org-roam-node-insert :desc "insert node link")
-  ("f" #'org-roam-node-find :desc "find node"))
+  "i" #'org-roam-node-insert
+  "f" #'org-roam-node-find)
 
 (with-eval-after-load 'org-mode
   (keymap-set org-mode-map "C-l M-l" #'=org-describe-link))
