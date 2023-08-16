@@ -33,6 +33,13 @@ if exe_exists starship; then
     eval "$(starship init zsh)"
 fi
 
+if exe_exists atuin; then
+    # Note: This generates the config file ($HOME/.config/atuin/config.toml) when
+    # run. AFAIK, this behavior cannot be ignored. I have opened
+    # https://github.com/atuinsh/atuin/issues/1180 to track.
+    eval "$(atuin init --disable-up-arrow zsh)"
+fi
+
 # Terminal side configuration for libvterm.
 #
 # This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,

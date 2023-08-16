@@ -1054,11 +1054,14 @@ Operate on the region defined by START to END."
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)
 	org-roam-db-location (=cache-file "roam.db" "org"))
+
+  (defvar =org-default-bibliography (expand-file-name "global.bib" org-roam-directory)
+    "A bibliography where org associated entries are stored.")
+
   ;; `org-roam-node-list' is called before a list of nodes is displayed to the user. We
   ;; use it as a prompt to turn on database syncing without slowing down startup.
   (=advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
-  (setq org-cite-global-bibliography
-        (list (expand-file-name "global.bib" org-roam-directory))))
+  (setq org-cite-global-bibliography (list =org-default-bibliography)))
 
 ;; This is a utility function to resolve GH links to their issue name.
 
@@ -1102,7 +1105,10 @@ Operate on the region defined by START to END."
   "My globally accessible org map."
   :global "M-o"
   "i" #'org-roam-node-insert
-  "f" #'org-roam-node-find)
+  "f" #'org-roam-node-find
+  "b" (lambda ()
+        (interactive)
+        (find-file =org-default-bibliography)))
 
 (with-eval-after-load 'org-mode
   (keymap-set org-mode-map "C-l M-l" #'=org-describe-link))
@@ -1161,7 +1167,14 @@ ARG is passed to `vterm' without processing."
 (=add-hook bibtex-mode-hook
   (lambda ()
     (add-hook 'before-save-hook #'bibtex-reformat nil t)))
-(setq bibtex-align-at-equal-sign t)
+
+;; Setup formatting
+(setq bibtex-align-at-equal-sign t
+      bibtex-comma-after-last-field t
+      bibtex-unify-case-function #'downcase)
+(with-eval-after-load 'bibtex
+  (mapc (lambda (x) (push x bibtex-entry-format))
+        (list 'last-comma 'sort-fields 'realign)))
 
 ;;; Major Modes: `go-mode'
 
