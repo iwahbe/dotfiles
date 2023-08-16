@@ -385,25 +385,23 @@ This is calculated once so it doesn't change during redisplay")
 Other currently loaded themes are disabled."
   (interactive
    (list (intern (completing-read "Load custom theme: "
-                                  (mapcar #'symbol-name
-				          (custom-available-themes))
+                                  (append (mapcar #'symbol-name
+				                  (custom-available-themes))
+                                          (mapcar #'car =default-themes))
                                   nil t))))
   (load-theme (alist-get theme =default-themes theme) t)
   ;; Disable previous themes
   (mapc #'disable-theme (cdr custom-enabled-themes)))
 
-;; I'm currently using [[https://github.com/nashamri/spacemacs-theme][spacemacs-theme]],
-;; both light and dark as my goto-theme.
-(elpaca spacemacs-theme
-  ;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
-  ;; hooks to support system appearance change. I want use these hooks when available.
-  (if (boundp 'ns-system-appearance)
-      ;; This hook will be called later during the startup process, so we don't need to
-      ;; manually call `=load-theme'.
-      (=add-hook ns-system-appearance-change-functions #'=load-theme)
-    ;; When there isn't any system input for the theme, we will just load the ='light=
-    ;; theme by default.
-    (=load-theme 'light)))
+;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
+;; hooks to support system appearance change. I want use these hooks when available.
+(if (boundp 'ns-system-appearance)
+    ;; This hook will be called later during the startup process, so we don't need to
+    ;; manually call `=load-theme'.
+    (=add-hook ns-system-appearance-change-functions #'=load-theme)
+  ;; When there isn't any system input for the theme, we will just load the ='light=
+  ;; theme by default.
+  (=load-theme 'light))
 
 
 
@@ -732,6 +730,16 @@ to directory DIR."
   (keymap-global-set "<remap> <switch-to-buffer-other-frame>" #'consult-buffer-other-frame)
   (keymap-global-set "<remap> <switch-to-buffer-other-window>" #'consult-buffer-other-window)
   (keymap-set isearch-mode-map "<remap> <isearch-edit-string>" #'consult-isearch-history))
+
+
+
+;;; Anzu
+
+;; Anzu provides counters when searching
+(elpaca anzu
+  (custom-set-variables
+   '( anzu-mode-lighter ""))
+  (global-anzu-mode +1))
 
 
 
