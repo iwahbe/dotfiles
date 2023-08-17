@@ -35,14 +35,17 @@ SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
   (advice-add symbol where function props))
 
 (require 'cl-lib)
-(cl-defmacro =define-keymap (name &rest keys &key global parent &allow-other-keys)
+(cl-defmacro =define-keymap (name &rest keys &key global parent bind &allow-other-keys)
   "Define a self-describing keymap called NAME consisting of KEYS.
 
 To bind the keymap to a global value, pass a binding to GLOBAL.
 
 To have the defined keymap inherit from a parent, set PARENT.
 
+BIND takes a list (keymap key) pair, and calls `(keymap-set keymap key name)'
+
 KEYS are (binding function) lists."
+  (declare (indent defun))
   (let (description)
     ;; Grab the description if present
     (when-let (d (car-safe keys))
@@ -56,19 +59,20 @@ KEYS are (binding function) lists."
                        (progn
                          (pcase (car keys)
                            (:global (setq global (cadr keys)))
-                           (:parent (setq parent (cadr parent)))
+                           (:parent (setq parent (cadr keys)))
+                           (:bind (setq bind (cadr keys)))
                            (other (error "Unknown property %s" other)))
                          (setq keys (cddr keys)))
                      (push (car keys) args)
                      (setq keys (cdr keys))))
                  (reverse args)))
-    (message "Parent = %s" parent)
     `(let ((m (define-keymap
                 :parent ,parent
                 ,@keys)))
        (defvar ,name m ,description)
        (setq ,name m)
        ,(when global `(keymap-global-set ,global ,name))
+       ,(when bind `(keymap-set ,(car bind) ,(cadr bind) ,name))
        ,name)))
 
 (defmacro =dbg (form)
@@ -1101,7 +1105,7 @@ Operate on the region defined by START to END."
 		     (org-element-property :end ctx))
       (org-insert-link link link description))))
 
-(=define-keymap =org-leader-map
+(=define-keymap =org-global-map
   "My globally accessible org map."
   :global "M-o"
   "i" #'org-roam-node-insert
@@ -1109,6 +1113,15 @@ Operate on the region defined by START to END."
   "b" (lambda ()
         (interactive)
         (find-file =org-default-bibliography)))
+
+(=define-keymap =org-roam-leader-map
+  "Org specific keybindings for `org-roam'.
+
+Unlike `=org-global-map', these keys are only accessible in an
+`org-mode' buffer."
+  :bind (org-mode-map "C-c r")
+  "a" #'org-roam-alias-add
+  "b" #'org-roam-buffer-toggle)
 
 (with-eval-after-load 'org-mode
   (keymap-set org-mode-map "C-l M-l" #'=org-describe-link))
