@@ -367,6 +367,12 @@ This is calculated once so it doesn't change during redisplay")
  ((functionp #'pixel-scroll-mode)
   (pixel-scroll-mode +1)))
 
+;; Make files with shebangs executable at the file system level.
+;;
+;; Taken from https://www.masteringemacs.org/article/script-files-executable-automatically
+(add-hook 'after-save-hook
+          'executable-make-buffer-file-executable-if-script-p)
+
 
 
 ;;; Themes
