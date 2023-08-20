@@ -35,12 +35,15 @@ SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
   (advice-add symbol where function props))
 
 (require 'cl-lib)
-(cl-defmacro =define-keymap (name &rest keys &key global parent bind &allow-other-keys)
+(cl-defmacro =define-keymap (name &rest keys &key global parent bind after &allow-other-keys)
   "Define a self-describing keymap called NAME consisting of KEYS.
 
 To bind the keymap to a global value, pass a binding to GLOBAL.
 
 To have the defined keymap inherit from a parent, set PARENT.
+
+If AFTER is specified, it should be a feature.  Other variables
+will only be evaluated once AFTER is loaded.
 
 BIND takes a list (keymap key) pair, and calls `(keymap-set keymap key name)'
 
@@ -61,19 +64,24 @@ KEYS are (binding function) lists."
                            (:global (setq global (cadr keys)))
                            (:parent (setq parent (cadr keys)))
                            (:bind (setq bind (cadr keys)))
+                           (:after (setq after (cadr keys)))
                            (other (error "Unknown property %s" other)))
                          (setq keys (cddr keys)))
                      (push (car keys) args)
                      (setq keys (cdr keys))))
                  (reverse args)))
-    `(let ((m (define-keymap
-                :parent ,parent
-                ,@keys)))
-       (defvar ,name m ,description)
-       (setq ,name m)
-       ,(when global `(keymap-global-set ,global ,name))
-       ,(when bind `(keymap-set ,(car bind) ,(cadr bind) ,name))
-       ,name)))
+    (let ((c `(let ((m (define-keymap
+                         :parent ,parent
+                         ,@keys)))
+                (defvar ,name m ,description)
+                (setq ,name m)
+                ,(when global `(keymap-global-set ,global ,name))
+                ,(when bind `(keymap-set ,(car bind) ,(cadr bind) ,name))
+                ,name)))
+      (if after
+          `(with-eval-after-load ,after
+             ,@c)
+        c))))
 
 (defmacro =dbg (form)
   "Print FORM => RES where res is what FORM evaluate to.
@@ -648,7 +656,7 @@ to directory DIR."
 
 (=define-keymap =project-prefix-map
   :global "C-x p"
-  :parent 'project-prefix-map
+  :parent project-prefix-map
   "C-f" #'consult-find
   "g" #'consult-ripgrep
   "v" #'magit
@@ -1114,8 +1122,9 @@ Operate on the region defined by START to END."
 (=define-keymap =org-global-map
   "My globally accessible org map."
   :global "M-o"
-  "i" #'org-roam-node-insert
   "f" #'org-roam-node-find
+  "r" #'org-roam-capture
+  "c" #'org-capture
   "b" (lambda ()
         (interactive)
         (find-file =org-default-bibliography)))
@@ -1126,7 +1135,10 @@ Operate on the region defined by START to END."
 Unlike `=org-global-map', these keys are only accessible in an
 `org-mode' buffer."
   :bind (org-mode-map "C-c r")
+  :after 'org-mode
   "a" #'org-roam-alias-add
+  "i" #'org-roam-node-insert ; This only makes sense where the links are rendered
+                                        ; correctly (`org-mode')
   "b" #'org-roam-buffer-toggle)
 
 (with-eval-after-load 'org-mode
@@ -1485,5 +1497,5 @@ DEPTH specifies how many levels to search through."
 
 
 
-(provide '=)
+(provide 'init)
 ;;; init.el ends here
