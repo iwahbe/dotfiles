@@ -823,6 +823,21 @@ to directory DIR."
 	      (apply fn (or out-dir =treesit-language-cache) args)))
 
 
+;;; Emacs as a Server
+
+;; Ensure that each instance of Emacs has a unique server name.
+(with-eval-after-load 'server
+  (when (equal server-name "server")
+    (setq server-name (format "server-%s" (emacs-pid)))))
+
+(defun =server-ensure ()
+  "Ensure that an instance of a `server' is running."
+  (require 'server)
+  (unless server-process
+    (server-start)))
+
+
+
 ;;; Language Server Protocol (LSP)
 
 ;; Many major modes augment their functionality with a
@@ -1164,7 +1179,24 @@ Unlike `=org-global-map', these keys are only accessible in an
 ;; https://launchpad.net/libvterm C99 library. It acts as a fully function unconstrained
 ;; terminal, just like Termnial.app or https://github.com/alacritty/alacritty.
 (elpaca vterm
-  (setq vterm-max-scrollback 10000))
+  (setq vterm-max-scrollback 10000)
+  (=advise-once #'vterm :before
+                (lambda (&rest _)
+                  ;; `vterm' is capable of running Emacs recursively, but exiting is
+                  ;; hard. To solve this problem, I have aliased "emacs" to "emacsclient"
+                  ;; in "home/.zshrc" when [[ "$INSIDE_EMACS" = "vterm" ]]:
+                  ;;
+                  ;;     alias emacs='emacsclient --quiet'
+                  ;;
+                  ;; To ensure that the client accesses the instance of Emacs that is
+                  ;; hosting `vterm', we need to ensure that the server is running and
+                  ;; that we set EMACS_SOCKET_NAME to the server name.
+                  ;;
+                  ;; See
+                  ;; https://www.gnu.org/software/emacs/manual/html_node/emacs/emacsclient-Options.html
+                  ;; for details.
+                  (=server-ensure)
+                  (push (concat "EMACS_SOCKET_NAME=" server-name) vterm-environment))))
 
 (defun =project-vterm (&optional arg)
   "A project aware invocation of `vterm'.

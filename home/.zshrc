@@ -45,6 +45,7 @@ fi
 # This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
 # and this works by appending to it.
 if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
+    alias emacs='emacsclient --quiet' # Avoid recursive Emacs.
     local src="${EMACS_VTERM_PATH}etc/emacs-vterm-zsh.sh"
     if [[ -f "$src" ]]; then
         source "$src"
