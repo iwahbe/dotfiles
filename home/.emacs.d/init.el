@@ -80,7 +80,7 @@ KEYS are (binding function) lists."
                 ,name)))
       (if after
           `(with-eval-after-load ,after
-             ,@c)
+             ,c)
         c))))
 
 (defmacro =dbg (form)
@@ -643,7 +643,8 @@ When called in a program, it will use the project corresponding
 to directory DIR."
   ;; This approach unifies `project-switch-commands' and the `project-prefix-map'.
   (interactive (list (funcall project-prompter)))
-  (let ((project-current-directory-override dir))
+  (let ((project-current-directory-override dir)
+        (default-directory dir))
     ;; We use `which-key-show-keymap' to provide a "dispatch menu", and to block on input.
     (which-key-show-keymap '=project-prefix-map)
     ;; Typing a command on the `which-key' menu just dismisses the menu, so we recover the
@@ -1006,15 +1007,15 @@ Operate on the region defined by START to END."
 
 ;; `org-mode' is primarily used for reading, so it's worth making it look as nice as
 ;; possible
+(setq
+ ;; Hide markup text such as =*=, =/= and ===.
+ org-hide-emphasis-markers t
 
-;; I hide markup text such as =*=, =/= and ===.
-(setq org-hide-emphasis-markers t)
+ ;; Similarly, we can render pretty equations like =(\alpha - \beta) \div \Omega=.
+ org-pretty-entities t
 
-;; Similarly, we can render pretty equations like =(\alpha - \beta) \div \Omega=.
-(setq org-pretty-entities t)
-
-;; We would prefer that org renders headings as =✿ Foo= then =***✿ Foo=.
-(setq org-hide-leading-stars t)
+ ;; We would prefer that org renders headings as =✿ Foo= then =***✿ Foo=.
+ org-hide-leading-stars t)
 
 ;; I replace stand org bullets with graphical overlays.
 (elpaca org-bullets (=add-hook org-mode-hook #'org-bullets-mode))
@@ -1150,7 +1151,7 @@ Operate on the region defined by START to END."
 Unlike `=org-global-map', these keys are only accessible in an
 `org-mode' buffer."
   :bind (org-mode-map "C-c r")
-  :after 'org-mode
+  :after 'org
   "a" #'org-roam-alias-add
   "i" #'org-roam-node-insert ; This only makes sense where the links are rendered
                                         ; correctly (`org-mode')
