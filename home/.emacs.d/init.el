@@ -338,9 +338,6 @@ This is calculated once so it doesn't change during redisplay")
 (line-number-mode +1)
 (column-number-mode +1)
 
-;; Emacs includes a built in mode for compilation output: `compilation-mode'.  We want
-;; `compilation-mode' to scroll to the first addressable error, not the last.
-(setq compilation-scroll-output 'first-error)
 
 ;; Emacs has support for native compilation of elisp code. This feature leads to a
 ;; noticeable speedup in performance dependent packages, such as `eglot' and
@@ -867,6 +864,33 @@ be the same as mode if not specified."
      (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'=lsp--ensure)
      ;; Create a common binding to commonly used LSP functions.
      (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" =lsp-map)))
+
+
+
+;;; Major mode: `compilation-mode'
+
+;; Emacs includes a built in mode for compilation output: `compilation-mode'.
+
+;; We want `compilation-mode' to scroll to the first addressable error, not the last.
+(setq compilation-scroll-output 'first-error
+      compilation-save-buffers-predicate (lambda ()
+                                           ;; If `compilation-directory' is in a project,
+                                           ;; we save all files in that project.
+                                           (if-let (p (project-current nil compilation-directory))
+                                               (string-prefix-p (project-root p)
+                                                                (file-truename (buffer-file-name)))
+                                             ;; If not, we just save all files.
+                                             t)))
+
+;; By default, compilation buffers don't handle ansi color correctly.
+;;
+;; This is ridiculous, and fixable.
+(defun =compilation-filter-hook ()
+  "Apply `ansi-color' to a compilation buffer."
+  (require 'ansi-color)
+  (ansi-color-apply-on-region compilation-filter-start (point)))
+
+(add-hook 'compilation-filter-hook #'=compilation-filter-hook)
 
 
 
