@@ -90,6 +90,17 @@ Return RES."
   ;; into "production" code.
   `(let ((res ,form)) (message "dbg: %s => %s" '(,@form) res) res))
 
+(defmacro =profile (&rest body)
+  "Run `profiler' on BODY, then report the result."
+  `(let ((time (current-time)))
+     (require 'profiler)
+     (profiler-reset) ; Disables the profiler, if running. Resets logs.
+     (profiler-start 'cpu+mem)
+     ,@body
+     (profiler-stop)
+     (profiler-report)
+     (message "Finished in %.06f seconds" (float-time (time-since time)))))
+
 
 ;;; Cache
 
