@@ -349,6 +349,9 @@ This is calculated once so it doesn't change during redisplay")
 (line-number-mode +1)
 (column-number-mode +1)
 
+;; This isolates the DEL keys from the region. To delete the region, `kill-region' should
+;; be used.
+(setq delete-active-region nil)
 
 ;; Emacs has support for native compilation of elisp code. This feature leads to a
 ;; noticeable speedup in performance dependent packages, such as `eglot' and
@@ -1145,10 +1148,11 @@ Operate on the region defined by START to END."
 ;; I want to leave a small note every time a "TODO" changes state.
 (setq org-log-done 'note)
 
-;; TODO: Adjust how [[help:org-refile][org-refile]] works to allow refiling into the
-;; hierarchy local buffer hierarchy.
+;; Set how `org-refile' works.
 (setq org-refile-use-outline-path t
-      org-outline-path-complete-in-steps nil)
+      org-outline-path-complete-in-steps nil
+      org-refile-targets '((nil :maxlevel . 3) ; The current file
+                           (org-agenda-files :maxlevel . 2)))
 
 ;; `org-agenda' is a component of `org-mode' that displays "TODO" elements as part of a
 ;; time view.
