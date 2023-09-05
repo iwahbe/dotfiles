@@ -45,7 +45,22 @@ fi
 # This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
 # and this works by appending to it.
 if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
+    # When we are inside Emacs, we don't want to open Emacs again, since it is hard to
+    # exit the inner Emacs without quitting the terminal emulator or the outer Emacs
+    # instance.
+    #
+    # To solve this, we redirect the two most common ways I open Emacs:
+    #
+    # Opening Emacs directly in the shell:
+    #
+    #	$ emacs file.txt
+    #
     alias emacs='emacsclient --quiet' # Avoid recursive Emacs.
+    # Opening Emacs via $EDITOR:
+    #
+    #	$ git commit
+    #
+    export EDITOR='emacsclient --quiet'
     local src="${EMACS_VTERM_PATH}etc/emacs-vterm-zsh.sh"
     if [[ -f "$src" ]]; then
         source "$src"
