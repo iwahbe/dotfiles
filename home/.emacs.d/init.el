@@ -962,6 +962,59 @@ ARG is passed directly to `magit-patch-save'."
     (transient-append-suffix 'magit-patch "r"
       '("y" "Yank diff as patch" =magit-patch-yank))))
 
+(defun =gh-token ()
+  "The current GitHub token, as provided by gh."
+  (when-let (executable-find "gh")
+    (setq =gh--token
+          (with-temp-buffer
+            (shell-command "gh auth token" (current-buffer))
+            (string-trim
+             (buffer-substring-no-properties
+              (point-min) (point-max)))))))
+
+(add-to-list 'auth-sources
+             (list 'elisp-source
+                   (list :host "api.github.com"
+                         :user "iwahbe^forge"
+                         :secret #'=gh-token)))
+
+(defun auth-source-backends-parser-elisp (entry)
+  "Parse ENTRY as a elisp auth source."
+  (when (eq (car-safe entry) 'elisp-source)
+    (auth-source-backend
+     :type 'elisp
+     :source "config"
+     :search-function #'auth-source-elisp-search
+     :data (cdr-safe entry))))
+
+(cl-defun auth-source-elisp-search (&rest spec
+                                          &key backend require
+                                          type max host user port
+                                          &allow-other-keys)
+  "Given a property list SPEC, return search matches from the `:backend'.
+See `auth-source-search' for details on SPEC."
+  (cl-assert (or (null type) (eq type 'elisp))
+             t "Invalid elisp search: %s %s")
+  (cl-assert backend t "Cannot have nil backend on query %s" spec)
+  (let ((matches (cl-flet ((check (entry field value)
+                             (or (not value)
+                                 (equal value (plist-get entry field)))))
+                   (seq-filter (lambda (entry)
+                                 (and
+                                  ;; If a field is specified, then we match it
+                                  (check entry :host host)
+                                  (check entry :user user)
+                                  (check entry :port port)))
+                               (slot-value backend :data)))))
+    (if max
+        (seq-take matches max)
+      matches)))
+
+(add-hook 'auth-source-backend-parser-functions
+          #'auth-source-backends-parser-elisp)
+
+(elpaca forge)
+
 
 ;; I often share code snippets from GitHub repos. It is helpful to be able to link to
 ;; snippets without going to github.com, and GitHub maintains a stable and easily
