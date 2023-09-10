@@ -3,6 +3,81 @@
 # Pre-append manually set paths to the path variable
 path=($user_path $path)
 
+_zsh_cache="$HOME/.cache/zsh"
+if ! [ -d "$_zsh_cache" ]; then
+    echo "Initializing zsh cache"
+    mkdir -p "$_zsh_cache"
+fi
+
+_zsh_comp_dump="$_zsh_cache/zcompdump-$HOST"
+
+# Registered completions
+#
+# Each entry should be a string of the form:
+#
+#	<cmd>:<completion generation command>
+#
+# Running <completion generation command> must emit the completion file for <cmd> to
+# stdout.
+completions_sources=(
+    "pulumi:pulumi gen-completion zsh"
+    "rustup:rustup completions zsh"
+    "cargo:rustup completions zsh cargo"
+    "rg:curl \"https://raw.githubusercontent.com/BurntSushi/ripgrep/master/complete/_rg\""
+)
+
+# The directory where completions are stored.
+_completions_dir="$_zsh_cache/completions"
+
+# The path where <cmd> should store it's completions file.
+_completions_file () {
+    echo "$_completions_dir/_$1"
+}
+
+# Run $1 on each <command> <generate> pair registered.
+_completions_foreach () {
+    for completion in $completions_sources; do
+        command="$(echo "$completion" | cut -d':' -f 1)"
+        gen="$(echo "$completion"     | cut -d':' -f 2-)"
+        "$1" "$command" "$gen"
+    done
+}
+
+_completions_regen () {
+    if exe_exists "$1"; then
+        echo "$1:@$2 @> $(_completions_file "$1")"
+        eval "$2" > "$(_completions_file "$1")"
+    else
+        echo "$command@not found"
+    fi
+}
+
+completions_regenerate () {
+    rm -rf "$_completions_dir"
+    rm "$_zsh_comp_dump"
+    mkdir -p "$_completions_dir"
+    echo "Rebuilding completions"
+    _completions_foreach _completions_regen | column -t -s "@"
+    autoload -Uz compinit && compinit -i -d "$_zsh_comp_dump"
+}
+
+_completions_ensure () {
+    if exe_exists "$1" && ! [ -f "$(_completions_file "$1")" ]; then
+       echo "$1:@$2 @> $(_completions_file "$1")"
+       eval "$2" > "$(_completions_file "$1")"
+    fi
+}
+
+completions_ensure () {
+    mkdir -p "$_completions_dir" # ensure directory exists
+    _completions_foreach _completions_ensure | column -t -s "@"
+    autoload -Uz compinit && compinit -i -d "$_zsh_comp_dump"
+}
+
+fpath=($HOME/.cache/zsh/completions $fpath)
+completions_ensure
+
+
 alias aws-login='aws sso login --profile=dev-sandbox && eval $(aws-sso-creds export -p dev-sandbox)'
 
 if exe_exists exa; then
@@ -69,10 +144,17 @@ if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
     fi
 fi
 
-local HIGHLIGHT="$HOME/.cache/zsh-syntax-highlighting"
-if ! [[ -d "$HIGHLIGHT" ]]; then
-    echo "Cloning zsh syntax highlighting into $HIGHLIGHT"
-    mkdir -d "$HOME/.cache"
-    git clone 'https://github.com/zsh-users/zsh-syntax-highlighting.git' "$HIGHLIGHT"
+# Setup syntax highlighting for zsh.
+local highlighting="$_zsh_cache/zsh-syntax-highlighting"
+if ! [[ -d "$highlighting" ]]; then
+    echo "Cloning zsh syntax highlighting into $highlighting"
+    git clone 'https://github.com/zsh-users/zsh-syntax-highlighting.git' "$highlighting"
 fi
-source "$HIGHLIGHT/zsh-syntax-highlighting.zsh"
+source "$highlighting/zsh-syntax-highlighting.zsh"
+
+# bun completions
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
