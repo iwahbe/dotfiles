@@ -975,12 +975,6 @@ ARG is passed directly to `magit-patch-save'."
              (buffer-substring-no-properties
               (point-min) (point-max)))))))
 
-(add-to-list 'auth-sources
-             (list 'elisp-source
-                   (list :host "api.github.com"
-                         :user "iwahbe^forge"
-                         :secret #'=gh-token)))
-
 (defun auth-source-backends-parser-elisp (entry)
   "Parse ENTRY as a elisp auth source."
   (when (eq (car-safe entry) 'elisp-source)
@@ -1013,8 +1007,16 @@ See `auth-source-search' for details on SPEC."
         (seq-take matches max)
       matches)))
 
-(add-hook 'auth-source-backend-parser-functions
-          #'auth-source-backends-parser-elisp)
+
+(with-eval-after-load 'auth-source
+  (add-to-list 'auth-sources
+               (list 'elisp-source
+                     (list :host "api.github.com"
+                           :user "iwahbe^forge"
+                           :secret #'=gh-token)))
+
+  (add-hook 'auth-source-backend-parser-functions
+            #'auth-source-backends-parser-elisp))
 
 (elpaca forge)
 
@@ -1143,7 +1145,8 @@ Operate on the region defined by START to END."
       '((sequence "TODO(t)" "WAIT(w)" "DONE(d)")
 	(type "PROJ(p)")
 	(type "KILL(k)")
-	(type "LOOP(l)")))
+	(type "LOOP(l)")
+        (type "MEETING(m)")))
 
 ;; I want to leave a small note every time a "TODO" changes state.
 (setq org-log-done 'note)
