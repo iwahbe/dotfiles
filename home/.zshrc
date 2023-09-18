@@ -24,6 +24,8 @@ completions_sources=(
     "rustup:rustup completions zsh"
     "cargo:rustup completions zsh cargo"
     "rg:curl \"https://raw.githubusercontent.com/BurntSushi/ripgrep/master/complete/_rg\""
+    "exa:curl \"https://raw.githubusercontent.com/ogham/exa/master/completions/zsh/_exa\""
+    "go:curl \"https://raw.githubusercontent.com/zsh-users/zsh-completions/master/src/_golang\""
 )
 
 # The directory where completions are stored.

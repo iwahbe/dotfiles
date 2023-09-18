@@ -1135,6 +1135,13 @@ Operate on the region defined by START to END."
  '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
  '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
 
+;; `engrave-faces' allows exporting to LaTeX using Emacs's `font-lock' to highlight SRC
+;; blocks.
+;;
+;; This increases the number of tlmgr packages needed to compile the generated .tex file.
+(elpaca engrave-faces
+  (setq org-latex-src-block-backend 'engraved))
+
 ;; I can now safely enable variable pitch mode.
 (=add-hook org-mode-hook #'variable-pitch-mode)
 
