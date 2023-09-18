@@ -1237,6 +1237,28 @@ Operate on the region defined by START to END."
 		     (org-element-property :end ctx))
       (org-insert-link link link description))))
 
+(setq org-roam-capture-templates
+      '(("m" "main" plain "%?"
+         :target (file+head "note/${slug}.org"
+                            "#+title: ${title}\n")
+         :immediate-finish t
+         :unnarrowed t)
+        ("r" "reference" plain "%?"
+         :target
+         (file+head "reference/${slug}.org"
+                    "#+title: ${title}
+#+BEGIN_SRC bibtex
+%(=bibtex-prompt-entry)
+#+END_SRC
+")
+         :immediate-finish t
+         :unnarrowed t)
+        ("e" "entity" plain "%?"
+         :target (file+head "entity/${slug}.org"
+                            "#+title: ${title}\n")
+         :immediate-finish t
+         :unnarrowed t)))
+
 (=define-keymap =org-global-map
   "My globally accessible org map."
   :global "M-o"
@@ -1246,6 +1268,71 @@ Operate on the region defined by START to END."
   "b" (lambda ()
         (interactive)
         (find-file =org-default-bibliography)))
+
+(defun =bibtex-prompt-entry ()
+  "Build a `bibtex' entry of some kind by prompting the user."
+  (interactive)
+  (let* ((kind (let* ((max-length (seq-max (seq-map #'length (seq-map #'car bibtex-entry-alist))))
+                      (completion-extra-properties
+                       `(:annotation-function
+                         ,(lambda (x)
+                            (concat
+                             (make-string (- max-length (length x)) ?\s)
+                             "\t\t"
+                             (car-safe (alist-get x bibtex-entry-alist nil nil #'string=))))))
+                      (selected (completing-read "Bibtex entry kind: "
+                                                 (seq-map #'car bibtex-entry-alist) nil t)))
+                 (cons selected (alist-get selected bibtex-entry-alist nil nil #'string=))))
+         fields
+         (required t)
+         (prompt-field
+          (lambda (field)
+            (unless (alist-get (car field) fields)
+              (setq fields (cons
+                            (cons (car field)
+                                  (let (answer)
+                                    (message "Considering test: %s" (not
+                                                                     (and answer
+                                                                          (or (not required) (> (length answer) 0)))))
+                                    (while (not
+                                            (and answer
+                                                 (or (not required) (> (length answer) 0))))
+                                      (setq answer (bibtex-read-key
+                                                    (concat (or (cadr field) (car field))
+                                                            (when required " [required]")
+                                                            ": ")
+                                                    nil t)))
+                                    answer))
+                            fields))))))
+    (seq-do prompt-field (caddr kind))        ;; required
+    (seq-do prompt-field (cadddr kind))       ;; cross reference
+    (setq required nil)
+    (seq-do prompt-field (cadddr (cdr kind))) ;; optional
+    (with-temp-buffer
+      (insert "@" (car kind) "{,\n"
+              (mapconcat
+               (lambda (field) (concat (car field) " = {" (cdr field) "},"))
+               (seq-sort-by #'car #'string< fields)
+               "\n")
+              "\n}")
+      (goto-char (1+ (point-min)))
+      (bibtex-clean-entry t)
+      (buffer-substring-no-properties (point-min) (point-max)))))
+
+(with-eval-after-load 'org-roam
+  ;; From https://jethrokuan.github.io/org-roam-guide/
+  (cl-defmethod org-roam-node-type ((node org-roam-node))
+    "Return the TYPE of NODE."
+    (condition-case nil
+        (file-name-nondirectory
+         (directory-file-name
+          (file-name-directory
+           (file-relative-name (org-roam-node-file node) org-roam-directory))))
+      (error "")))
+
+  (setq org-roam-node-display-template
+        ;; Here `${type}' is referencing the `org-roam-node-type'.
+        (concat "${type:15} ${title:*} " (propertize "${tags:10}" 'face 'org-tag))))
 
 (=define-keymap =org-roam-leader-map
   "Org specific keybindings for `org-roam'.
