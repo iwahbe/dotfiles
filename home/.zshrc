@@ -79,8 +79,15 @@ completions_ensure () {
 fpath=($HOME/.cache/zsh/completions $fpath)
 completions_ensure
 
-
-alias aws-login='aws sso login --profile=dev-sandbox && eval $(aws-sso-creds export -p dev-sandbox)'
+# aws-login is responsible for dumping valid, non-production AWS credentials into the environment.
+#
+# Previously, I combined the aws CLI with https://github.com/jaxxstorm/aws-sso-creds to
+# get credentials:
+#
+#     alias aws-login='aws sso login --profile=dev-sandbox && eval $(aws-sso-creds export -p dev-sandbox)'
+#
+# With the introduction of `pulumi env`, we can make this simpler:
+alias aws-login='eval $(pulumi env open -f shell pulumi/dev-sandbox)'
 
 if exe_exists exa; then
     alias ls='exa -Fl'

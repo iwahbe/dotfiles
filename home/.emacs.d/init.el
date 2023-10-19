@@ -1247,6 +1247,7 @@ Operate on the region defined by START to END."
          :target
          (file+head "reference/${slug}.org"
                     "#+title: ${title}
+
 #+BEGIN_SRC bibtex
 %(=bibtex-prompt-entry)
 #+END_SRC
@@ -1272,6 +1273,7 @@ Operate on the region defined by START to END."
 (defun =bibtex-prompt-entry ()
   "Build a `bibtex' entry of some kind by prompting the user."
   (interactive)
+  (require 'bibtex)
   (let* ((kind (let* ((max-length (seq-max (seq-map #'length (seq-map #'car bibtex-entry-alist))))
                       (completion-extra-properties
                        `(:annotation-function
@@ -1598,7 +1600,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; https://github.com/iwahbe/chat.el. This provides basic functionality to interact with
 ;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
 (elpaca (chat.el :host github :repo "iwahbe/chat.el")
-  (=1Password-setq chat-api-key "OpenAI/API Keys/Personal" #'chat-get-api-key))
+  (=1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key))
 
 
 
