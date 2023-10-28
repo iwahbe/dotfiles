@@ -1133,7 +1133,11 @@ Operate on the region defined by START to END."
  '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
  '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
  '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
- '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
+ '(org-verbatim ((t (:inherit (shadow fixed-pitch)))))
+ '(org-quote ((t (:inherit (shadow italic))))))
+
+;; Apply the face `org-quote' to quoted blocks.
+(setq org-fontify-quote-and-verse-blocks t)
 
 ;; `engrave-faces' allows exporting to LaTeX using Emacs's `font-lock' to highlight SRC
 ;; blocks.
