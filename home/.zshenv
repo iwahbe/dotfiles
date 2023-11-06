@@ -39,3 +39,7 @@ if exe_exists dotnet; then
    add_to_path "$HOME/.dotnet/tools"
 fi
 export EDITOR='emacs -nw'
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

@@ -1274,7 +1274,7 @@ Operate on the region defined by START to END."
         (interactive)
         (find-file =org-default-bibliography)))
 
-(defun =bibtex-prompt-entry ()
+(defun =bibtex-prompt-entry (&rest _)
   "Build a `bibtex' entry of some kind by prompting the user."
   (interactive)
   (require 'bibtex)
@@ -1710,6 +1710,21 @@ DEPTH specifies how many levels to search through."
           "\n"))
 
 
+
+;;; Path Sync
+
+;; Ensure that `exec-path' matches the path as set up by the shell environment.
+;;
+;; This implementation relies on `exec-path' being good enough to discover a valid ZSH
+;; implementation, which is then queried asynchronously to find the correct path.
+(let* ((b (get-buffer-create "discover-exec-path" t))
+       (p (start-process "discover-exec-path" b "zsh" "-c" "echo $PATH")))
+  (set-process-sentinel p (lambda (process event)
+                            (when (equal event "finished\n")
+                              (setq exec-path (string-split (with-current-buffer b
+                                                              (buffer-string))
+                                                            ":" t "\n"))
+                              (kill-buffer b)))))
 
 ;;; Custom
 
