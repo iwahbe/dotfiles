@@ -422,15 +422,18 @@ Other currently loaded themes are disabled."
   ;; Disable previous themes
   (mapc #'disable-theme (cdr custom-enabled-themes)))
 
-;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
-;; hooks to support system appearance change. I want use these hooks when available.
-(if (boundp 'ns-system-appearance)
-    ;; This hook will be called later during the startup process, so we don't need to
-    ;; manually call `=load-theme'.
-    (=add-hook ns-system-appearance-change-functions #'=load-theme)
-  ;; When there isn't any system input for the theme, we will just load the ='light=
-  ;; theme by default.
-  (=load-theme 'light))
+(elpaca moe-theme
+  (setq =default-themes '((light . moe-light)
+                          (dark  . moe-dark)))
+  ;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
+  ;; hooks to support system appearance change. I want use these hooks when available.
+  (if (boundp 'ns-system-appearance)
+      ;; This hook will be called later during the startup process, so we don't need to
+      ;; manually call `=load-theme'.
+      (=add-hook ns-system-appearance-change-functions #'=load-theme)
+    ;; When there isn't any system input for the theme, we will just load the ='light=
+    ;; theme by default.
+    (=load-theme 'light)))
 
 
 
@@ -645,6 +648,8 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
     (sit-for 1)
     (project-switch-project project-current-directory-override)))
 
+(require 'project)
+
 (defun =project-switch-project (dir)
   "\"Switch\" to another project by running an Emacs command.
 The available commands are presented as a dispatch menu
@@ -744,7 +749,6 @@ to directory DIR."
 ;; improved consulting commands. I rebind several existing built-in commands with their
 ;; =consult= equivalent.
 
-
 (elpaca consult
   (keymap-global-set "<remap> <goto-line>" #'consult-goto-line)
   (keymap-global-set "<remap> <Info-search>" #'consult-info)
@@ -773,6 +777,19 @@ to directory DIR."
 
 
 
+;;; Jinx - Spellcheck
+
+(elpaca (jinx
+         :host github :repo "minad/jinx"
+         :files (:defaults "*.c" "*.h")) ;; Copy over
+  (global-jinx-mode)
+  (keymap-global-set "M-$" #'jinx-correct))
+
+(unless module-file-suffix
+  (error "TODO: Support spellcheck without dynamic modules"))
+
+
+
 ;;; Major Modes: `text-mode'
 
 ;; Text mode is the parent mode for unstructured text.
@@ -781,7 +798,6 @@ to directory DIR."
 ;; `text-mode'. This applies for all derived modes as well.
 
 (=add-hook 'text-mode-hook
-  #'flyspell-mode
   #'visual-line-mode)
 
 
@@ -792,14 +808,10 @@ to directory DIR."
 ;; programming language major modes and most data format major modes are ultimately
 ;; derived from `prog-mode'.
 
-;; For programming, we want spellcheck for strings and comments, but not necessarily for
-;; all text (such as variable names). Flyspell provides `flyspell-prog-mode' for this
-;; purpose.
-(=add-hook prog-mode-hook #'flyspell-prog-mode)
-
 ;; Programming languages introduce a new type of error: syntax errors. This is handled by
 ;; `flymake', which we enable for all programming languages.
 (=add-hook prog-mode-hook #'flymake-mode)
+
 
 
 
@@ -820,7 +832,8 @@ to directory DIR."
 (setq treesit-language-source-alist
       '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))
 	(tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))
-        (json       . ("https://github.com/tree-sitter/tree-sitter-json"       "master" "src"))))
+        (json       . ("https://github.com/tree-sitter/tree-sitter-json"       "master" "src"))
+        (python     . ("https://github.com/tree-sitter/tree-sitter-python"     "master" "src"))))
 
 ;; By default, treesit installs grammars in (expand-file-name "tree-sitter"
 ;; user-emacs-directory). We want to redirect this to a directory in
@@ -862,6 +875,14 @@ to directory DIR."
   ;; blocking nature of `eglot-ensure', we provide wrapper function that will allow the
   ;; buffer to display before enabling the LSP server.
   (run-with-idle-timer 0 nil #'eglot-ensure))
+
+;; Performance optimizations for eglot
+;;
+;; Borrowed from https://github.com/joaotavora/eglot/discussions/993.
+(setq eglot-events-buffer-size 0
+      eglot-ignored-server-capabilities '(:hoverProvider
+                                          :documentHighlightProvider)
+      eglot-autoshutdown t)
 
 (=define-keymap =lsp-map
   "Common functions for LSP."
@@ -1575,6 +1596,15 @@ The opening \" should be after START and the closing \" should be before END."
 
 
 
+;;; Major Modes: `python-mode'
+
+(if (treesit-ready-p 'python)
+    (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode)))
+
+(=lsp-declare python-mode)
+
+
+
 ;;; Major Modes: `rust-mode'
 
 ;; Rust is pretty simple, we want `rust-mode' and then a LSP on top:
@@ -1604,6 +1634,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; https://github.com/iwahbe/chat.el. This provides basic functionality to interact with
 ;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
 (elpaca (chat.el :host github :repo "iwahbe/chat.el")
+  (setq chat-model "gpt-4-1106-preview")
   (=1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key))
 
 
