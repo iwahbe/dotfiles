@@ -1110,7 +1110,47 @@ Operate on the region defined by START to END."
               'org-babel-load-languages
               (mapcar (lambda (lang)
                         (cons lang t))
-                      =org-babel-languages)))))
+                      =org-babel-languages))))
+
+  (require 'ol)
+  (org-link-set-parameters "gh"
+                           :follow #'org-gh-follow
+                           :insert-description #'org-gh-insert-description))
+
+(defun org-gh--parse (link)
+  "Parse a gh: LINK of the form gh:org/repo#issue into (org/repo . issue)."
+  (let ((parts (string-split (string-remove-prefix "gh:" link) "#" t)))
+    (unless (length= parts 2)
+      (error "Link had the wrong length: %s" link))
+    (cons (car parts) (cadr parts))))
+
+(defun org-gh-follow (link _)
+  "Open a `gh' based LINK of the format gh:org/repo#number."
+  (let ((parts (org-gh--parse link)))
+    (if-let (gh (executable-find "gh"))
+        (call-process gh nil nil nil "issue" "view" "--web" "--repo" (car parts) (cdr parts))
+      (user-error "Could not find \"gh\" executable"))))
+
+(defun org-gh-insert-description (link description)
+  "Find the name of a GH issue for display purposes.
+LINK is a gh link of the form org/repo#number.
+DESCRIPTION is the existing description."
+  (or description
+      (let ((parts (org-gh--parse link)))
+        (with-temp-buffer
+	  (unless (equal 0
+                         (call-process
+			  (executable-find "gh") nil t nil
+			  "issue" "view" (cdr parts)
+			  "--repo" (car parts)
+			  "--json" "title"))
+	    (user-error "Failed to get title from GH: %s"
+                        (progn (goto-char (point-min))
+                               (buffer-string))))
+	  (goto-char (point-min))
+          (format "%s#%s: %s"
+                  (car parts) (cdr parts)
+                  (alist-get 'title (json-parse-buffer :object-type 'alist)))))))
 
 ;; `org-mode' is structured around putting all your =.org= files into a single
 ;; directory. It isn't required, but I generally do it anyway. The default value is
@@ -1223,44 +1263,6 @@ Operate on the region defined by START to END."
   ;; use it as a prompt to turn on database syncing without slowing down startup.
   (=advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
   (setq org-cite-global-bibliography (list =org-default-bibliography)))
-
-;; This is a utility function to resolve GH links to their issue name.
-
-;; TODO Combine `=org-describe-link' with `org-link-make-description-function' to get the
-;; desired behavior by default.
-(defun =org-describe-link ()
-  "Heuristically add a description to the `org-mode' link at point."
-  (interactive)
-  (when-let* ((ctx (org-element-context))
-              (type (org-element-type ctx))
-	      (link (org-element-property :raw-link ctx))
-	      (description (pcase link
-			     ;; This is an https: link to a github issue, so we can use
-			     ;; `gh` to get the issue title and display that as the
-			     ;; description.
-			     ((pred (string-match
-				     "https://github.com/\\([-a-zA-Z0-9]+\\)/\\([-a-zA-Z0-9]+\\)/\\(pull\\|issues\\)/\\([0-9]+\\)"))
-			      (with-temp-buffer
-				(unless (equal 0
-					       (call-process
-						(executable-find "gh") nil t nil
-						"issue" "view" (substring link (match-beginning 4) (match-end 4))
-						(concat "--repo="
-							(substring link (match-beginning 1) (match-end 1))
-							"/"
-							(substring link (match-beginning 2) (match-end 2)))
-						"--json=title"))
-				  (user-error "Failed to get title from GH"))
-				(goto-char (point-min))
-				(alist-get 'title (json-parse-buffer :object-type 'alist))))
-			     ;; Unable to describe link, so let the user do it
-			     (_
-			      (message "No option matched to describe the link at point: %s" link)
-			      nil))))
-    (save-excursion
-      (delete-region (org-element-property :begin ctx)
-		     (org-element-property :end ctx))
-      (org-insert-link link link description))))
 
 (setq org-roam-capture-templates
       '(("m" "main" plain "%?"
