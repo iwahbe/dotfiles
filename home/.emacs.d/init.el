@@ -1273,11 +1273,14 @@ DESCRIPTION is the existing description."
         ("r" "reference" plain "%?"
          :target
          (file+head "reference/${slug}.org"
-                    "#+title: ${title}
+                    ":CITATION:
+:DATE_ADDED: %t
+:DATE_PUBLISHED: %^t
+:HOW_PUBLISHED: %^{how published}
+:AUTHOR: %^{author}
+:END:
+#+title: ${title}
 
-#+BEGIN_SRC bibtex
-%(=bibtex-prompt-entry)
-#+END_SRC
 ")
          :immediate-finish t
          :unnarrowed t)
@@ -1296,57 +1299,6 @@ DESCRIPTION is the existing description."
   "b" (lambda ()
         (interactive)
         (find-file =org-default-bibliography)))
-
-(defun =bibtex-prompt-entry (&rest _)
-  "Build a `bibtex' entry of some kind by prompting the user."
-  (interactive)
-  (require 'bibtex)
-  (let* ((kind (let* ((max-length (seq-max (seq-map #'length (seq-map #'car bibtex-entry-alist))))
-                      (completion-extra-properties
-                       `(:annotation-function
-                         ,(lambda (x)
-                            (concat
-                             (make-string (- max-length (length x)) ?\s)
-                             "\t\t"
-                             (car-safe (alist-get x bibtex-entry-alist nil nil #'string=))))))
-                      (selected (completing-read "Bibtex entry kind: "
-                                                 (seq-map #'car bibtex-entry-alist) nil t)))
-                 (cons selected (alist-get selected bibtex-entry-alist nil nil #'string=))))
-         fields
-         (required t)
-         (prompt-field
-          (lambda (field)
-            (unless (alist-get (car field) fields)
-              (setq fields (cons
-                            (cons (car field)
-                                  (let (answer)
-                                    (message "Considering test: %s" (not
-                                                                     (and answer
-                                                                          (or (not required) (> (length answer) 0)))))
-                                    (while (not
-                                            (and answer
-                                                 (or (not required) (> (length answer) 0))))
-                                      (setq answer (bibtex-read-key
-                                                    (concat (or (cadr field) (car field))
-                                                            (when required " [required]")
-                                                            ": ")
-                                                    nil t)))
-                                    answer))
-                            fields))))))
-    (seq-do prompt-field (caddr kind))        ;; required
-    (seq-do prompt-field (cadddr kind))       ;; cross reference
-    (setq required nil)
-    (seq-do prompt-field (cadddr (cdr kind))) ;; optional
-    (with-temp-buffer
-      (insert "@" (car kind) "{,\n"
-              (mapconcat
-               (lambda (field) (concat (car field) " = {" (cdr field) "},"))
-               (seq-sort-by #'car #'string< fields)
-               "\n")
-              "\n}")
-      (goto-char (1+ (point-min)))
-      (bibtex-clean-entry t)
-      (buffer-substring-no-properties (point-min) (point-max)))))
 
 (with-eval-after-load 'org-roam
   ;; From https://jethrokuan.github.io/org-roam-guide/
