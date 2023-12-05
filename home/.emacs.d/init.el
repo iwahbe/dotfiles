@@ -696,25 +696,30 @@ to directory DIR."
         corfu-auto-prefix 1)  ;; Wait only for the first character
 
   ;; I want completion to be enabled everywhere.
-  (global-corfu-mode)
+  ;;
+  ;; However, this doesn't work when on a terminal.
+  (when (display-graphic-p)
+    (global-corfu-mode))
 
-  ;; Finally, I want completion to not interfere with my normal typing. By default, return
-  ;; finalizes a completion. I find this super disruptive, since I often want to type RET,
-  ;; even when a completion is prompted. The solution is to unbind RET and rebind a less
-  ;; intrusive option. I use control-space.
+  (with-eval-after-load 'corfu
 
-  ;; This unbinds "RET" in the map `corfu' uses during completion. The trailing t ensures
-  ;; that we are removing this binding, not just setting it to nil. This allows fallback
-  ;; to other keymaps (such as the `self-insert-command' in the `global-mode-map').
-  (keymap-unset corfu-map "RET" t)
+    ;; Finally, I want completion to not interfere with my normal typing. By default, return
+    ;; finalizes a completion. I find this super disruptive, since I often want to type RET,
+    ;; even when a completion is prompted. The solution is to unbind RET and rebind a less
+    ;; intrusive option. I use control-space.
 
-  ;; I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't seem
-  ;; to be a binding that applies to both the terminal and the GUI, so I apply a separate
-  ;; binding for both.
-  (dolist (spc '("C-@" "C-SPC"))
-    ;; C-@ works in the terminal, but not in GUI.
-    ;; C-SPC works in GUI, but not in the terminal.
-    (keymap-set corfu-map spc #'corfu-insert)))
+    ;; This unbinds "RET" in the map `corfu' uses during completion. The trailing t ensures
+    ;; that we are removing this binding, not just setting it to nil. This allows fallback
+    ;; to other keymaps (such as the `self-insert-command' in the `global-mode-map').
+    (keymap-unset corfu-map "RET" t)
+
+    ;; I then apply the correct bindings for Ctrl-Space. Unfortunately, there doesn't seem
+    ;; to be a binding that applies to both the terminal and the GUI, so I apply a separate
+    ;; binding for both.
+    (dolist (spc '("C-@" "C-SPC"))
+      ;; C-@ works in the terminal, but not in GUI.
+      ;; C-SPC works in GUI, but not in the terminal.
+      (keymap-set corfu-map spc #'corfu-insert))))
 
 ;; `corfu' only works on a GUI. When I don't have access to a GUI, I load
 ;; https://codeberg.org/akib/emacs-corfu-terminal to get the graphics to stay consistent.
@@ -833,7 +838,9 @@ to directory DIR."
       '((typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))
 	(tsx        . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))
         (json       . ("https://github.com/tree-sitter/tree-sitter-json"       "master" "src"))
-        (python     . ("https://github.com/tree-sitter/tree-sitter-python"     "master" "src"))))
+        (python     . ("https://github.com/tree-sitter/tree-sitter-python"     "master" "src"))
+        (elixir     . ("https://github.com/elixir-lang/tree-sitter-elixir"     "main"   "src"))
+        (heex       . ("https://github.com/phoenixframework/tree-sitter-heex"  "main"   "src"))))
 
 ;; By default, treesit installs grammars in (expand-file-name "tree-sitter"
 ;; user-emacs-directory). We want to redirect this to a directory in
@@ -889,16 +896,24 @@ to directory DIR."
   "a" #'eglot-code-actions
   "r" #'eglot-rename)
 
-(cl-defmacro =lsp-declare (mode &key require)
+(cl-defmacro =lsp-declare (mode &key require program)
   "Declare that MODE should launch a LSP server.
 
 REQUIRE is the feature provided by the package.  It is assumed to
-be the same as mode if not specified."
-  `(with-eval-after-load ',(or require mode)
-     ;; Ensure that we have `eglot' up and running on new files.
-     (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'=lsp--ensure)
-     ;; Create a common binding to commonly used LSP functions.
-     (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" =lsp-map)))
+be the same as mode if not specified.
+
+PROGRAM is the name or path of the LSP server, left to the
+underlying LSP plugin if not specified."
+  `(progn
+     ,(when program
+        `(with-eval-after-load 'eglot
+           (add-to-list 'eglot-server-programs '((,mode) ,program))))
+     (with-eval-after-load ',(or require mode)
+
+       ;; Ensure that we have `eglot' up and running on new files.
+       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'=lsp--ensure)
+       ;; Create a common binding to commonly used LSP functions.
+       (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" =lsp-map))))
 
 
 
@@ -1566,6 +1581,23 @@ The opening \" should be after START and the closing \" should be before END."
   (setq rust-format-on-save t))
 
 (=lsp-declare rust-mode)
+
+;;; Major Modes: `elixir-mode'
+
+;; The major mode for elixir should be `elixir-mode', which isn't defined by Emacs... so
+;; we define our own.
+
+(define-derived-mode elixir-mode elixir-ts-mode "Elixir"
+  "Major mode for editing Elixir files."
+  :syntax-table nil ;; Use the same syntax table as `elixir-ts-mode'
+  :abbrev-table nil ;; Use the same abbrev table as `elixir-ts-mode'
+  (add-hook 'before-save-hook #'eglot-format-buffer nil t))
+
+(add-to-list 'auto-mode-alist '("\\.ex\\'" . elixir-mode))
+
+(=lsp-declare elixir-mode :program "elixir-ls")
+
+(provide 'elixir-mode)
 
 
 
