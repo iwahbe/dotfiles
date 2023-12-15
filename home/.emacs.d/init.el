@@ -1593,7 +1593,19 @@ The opening \" should be after START and the closing \" should be before END."
   :abbrev-table nil ;; Use the same abbrev table as `elixir-ts-mode'
   (add-hook 'before-save-hook #'eglot-format-buffer nil t))
 
-(add-to-list 'auto-mode-alist '("\\.ex\\'" . elixir-mode))
+;; We want to triger `elixir-mode' for the same set of files we would trigger
+;; `elixir-ts-mode' for.
+(dolist (m '(("mix\\.lock" . elixir-mode) ("\\.exs\\'" . elixir-mode)
+             ("\\.ex\\'" . elixir-mode) ("\\.elixir\\'" . elixir-mode)))
+  (add-to-list 'auto-mode-alist m))
+
+;; When `elixir-ts-mode' loads, it pollutes `auto-mode-alist', so we clean it out.
+(with-eval-after-load 'elixir-ts-mode
+  (setq auto-mode-alist
+        (seq-filter
+         (lambda (el)
+           (not (eq (cdr el) 'elixir-ts-mode)))
+         auto-mode-alist)))
 
 (=lsp-declare elixir-mode :program "elixir-ls")
 
