@@ -1132,7 +1132,41 @@ Operate on the region defined by START to END."
   (require 'ol)
   (org-link-set-parameters "gh"
                            :follow #'org-gh-follow
-                           :insert-description #'org-gh-insert-description))
+                           :insert-description #'org-gh-insert-description)
+  ;; gh:org/repo#num is much cleaner then https://github.com/org/repo/issues/num, but the
+  ;; internet tends to provide links in the less clean form.
+  ;;
+  ;; This fixes up urls before `org-insert-link' is called to add a description. Since
+  ;; "gh:" style links know how to insert their own description, this makes it possible to
+  ;; insert a GH description by simply `yank'ing in a GH link and calling
+  ;; `org-insert-link'.
+  (advice-add #'org-insert-link :before #'org-gh--fixup-http))
+
+(defun org-gh--fixup-http (&rest _)
+  "When `org-insert-link' is run, fixup http(s?) links into the gh: format.
+
+A link gh: compatible when it is of the form
+
+    http(s)://www.github.com/${ORG}/${REPO}/(pulls|issues)/${NUMBER}
+
+The above link can be equivalently represented as
+
+    gh:${ORG}/${REPO}#${NUMBER}
+
+This function performs the fixup in place."
+
+  (when (org-in-regexp org-link-plain-re)
+    (let ((remove (list (match-beginning 0) (match-end 0)))
+          (link (org-link-unescape (match-string-no-properties 0)))
+          (gh-link-regexp
+           "^https?://\\(www\\.\\)?github.com/\\([^/.]+\\)/\\([^/.]+\\)/\\(pull\\|issues\\)/\\([0-9]+\\)$")
+          (case-fold-search nil))
+      (when (string-match gh-link-regexp link)
+        (apply #'delete-region remove)
+        (insert (concat "gh:"
+                        (match-string 2 link) "/"
+                        (match-string 3 link) "#"
+                        (match-string 5 link)))))))
 
 (defun org-gh--parse (link)
   "Parse a gh: LINK of the form gh:org/repo#issue into (org/repo . issue)."
