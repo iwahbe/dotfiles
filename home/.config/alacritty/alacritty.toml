@@ -1,0 +1,22 @@
+[cursor.style]
+blinking = "Off"
+shape = "Beam"
+
+[font.bold]
+family = "USER_FONT"
+style = "Bold"
+
+[font.bold_italic]
+family = "USER_FONT"
+style = "Bold Italic"
+
+[font.italic]
+family = "USER_FONT"
+style = "Italic"
+
+[font.normal]
+family = "USER_FONT"
+style = "Regular"
+
+[window]
+option_as_alt = "Both"
