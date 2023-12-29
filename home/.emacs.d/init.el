@@ -731,7 +731,7 @@ to directory DIR."
 	   :repo "https://codeberg.org/akib/emacs-corfu-terminal.git")
     (corfu-terminal-mode +1)))
 
-;; A vertical completion framework, applying a nicer UX to default compleating-read style
+;; A vertical completion framework, applying a nicer UX to default `completing-read' style
 ;; completion.
 (elpaca vertico
   (setq vertico-cycle t)
@@ -967,7 +967,9 @@ underlying LSP plugin if not specified."
 ;; I maintain my own major mode for json: `jsonian'. It has some cool features, but the
 ;; major win is working well in large buffers.
 
-(elpaca jsonian)
+(elpaca jsonian
+  (with-eval-after-load 'orderless
+    (setq jsonian-find-filter-fn #'orderless-filter)))
 
 
 
