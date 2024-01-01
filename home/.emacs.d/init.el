@@ -1187,14 +1187,14 @@ This function performs the fixup in place."
 LINK is a gh link of the form org/repo#number.
 DESCRIPTION is the existing description."
   (or description
-      (let ((parts (org-gh--parse link)))
+      (when-let ((parts (org-gh--parse link))
+                 (gh (executable-find "gh")))
         (with-temp-buffer
 	  (unless (equal 0
-                         (call-process
-			  (executable-find "gh") nil t nil
-			  "issue" "view" (cdr parts)
-			  "--repo" (car parts)
-			  "--json" "title"))
+                         (call-process gh nil t nil
+			               "issue" "view" (cdr parts)
+			               "--repo" (car parts)
+			               "--json" "title"))
 	    (user-error "Failed to get title from GH: %s"
                         (progn (goto-char (point-min))
                                (buffer-string))))
@@ -1246,7 +1246,8 @@ DESCRIPTION is the existing description."
  '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
  '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
  '(org-verbatim ((t (:inherit (shadow fixed-pitch)))))
- '(org-quote ((t (:inherit (shadow italic))))))
+ '(org-quote ((t (:inherit (shadow italic)))))
+ '(org-date ((t (:inherit (shadow fixed-pitch))))))
 
 ;; Apply the face `org-quote' to quoted blocks.
 (setq org-fontify-quote-and-verse-blocks t)
@@ -1315,31 +1316,11 @@ DESCRIPTION is the existing description."
   (=advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
   (setq org-cite-global-bibliography (list =org-default-bibliography)))
 
-(setq org-roam-capture-templates
-      '(("m" "main" plain "%?"
-         :target (file+head "note/${slug}.org"
-                            "#+title: ${title}\n")
-         :immediate-finish t
-         :unnarrowed t)
-        ("r" "reference" plain "%?"
-         :target
-         (file+head "reference/${slug}.org"
-                    ":CITATION:
-:DATE_ADDED: %t
-:DATE_PUBLISHED: %^t
-:HOW_PUBLISHED: %^{how published}
-:AUTHOR: %^{author}
-:END:
-#+title: ${title}
-
-")
-         :immediate-finish t
-         :unnarrowed t)
-        ("e" "entity" plain "%?"
-         :target (file+head "entity/${slug}.org"
-                            "#+title: ${title}\n")
-         :immediate-finish t
-         :unnarrowed t)))
+(with-eval-after-load 'org
+  (with-eval-after-load 'org-roam
+    (let ((f (expand-file-name "templates.el" org-directory)))
+      (when (file-exists-p f)
+        (load-file f)))))
 
 (=define-keymap =org-global-map
   "My globally accessible org map."
@@ -1786,9 +1767,10 @@ DEPTH specifies how many levels to search through."
        (p (start-process "discover-exec-path" b "zsh" "-c" "echo $PATH")))
   (set-process-sentinel p (lambda (process event)
                             (when (equal event "finished\n")
-                              (setq exec-path (string-split (with-current-buffer b
-                                                              (buffer-string))
-                                                            ":" t "\n"))
+                              (setq exec-path
+                                    (string-split
+                                     (with-current-buffer b (buffer-string))
+                                     ":" t "\n"))
                               (kill-buffer b)))))
 
 ;;; Custom
