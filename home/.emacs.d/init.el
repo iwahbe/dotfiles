@@ -107,9 +107,14 @@ Return RES."
 (defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
   "The directory where a system local cache is stored.")
 
-(defun =cache-subdirectory (domain)
-  "A stable directory to cache files from DOMAIN in."
-  (expand-file-name (concat domain "/") =cache-directory))
+(defun =cache-subdirectory (domain &optional ensure)
+  "A stable directory to cache files from DOMAIN in.
+
+If ENSURE is non-nil, create the file if it does not exist."
+  (let ((path (expand-file-name (concat domain "/") =cache-directory)))
+    (when ensure
+      (make-directory path t))
+    path))
 
 (defun =cache-file (file &optional domain)
   "A stable file name for FILE, located in DOMAIN if provided."
@@ -600,27 +605,15 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 
 
-;; By default, Emacs scatters backup and auto-save files over the directory in use, but
-;; does not remember useful information such as where I was last I edited the buffer. This
-;; needs to be fixed.
+;; By default, Emacs scatters backup and auto-save files over the directory in use.
+;;
+;; This is annoying at best, but painful in a world where most projects are under version
+;; control.
 
-
-
-
-;; I move all auto-saves into a centralized directory that I know is /not/ under source control.
-
-
-(setq auto-save-list-file-prefix
-      (concat (=cache-subdirectory "auto-save-list") ".saves-"))
-
-
-
-;; Similarly, I move all backups to a cache directory.
-
-;; The ="."= means that this is the backup location for files in all directories.
-
-
-(setq backup-directory-alist `(("." . ,(=cache-subdirectory "backup"))))
+(custom-set-variables
+ ;; Move auto-save files (#foo#) and backup files (foo~) into the cache.
+ '(auto-save-file-name-transforms `((".*" ,(concat (=cache-subdirectory "autosaves" t) "\\1") t)))
+ '(backup-directory-alist `(("." . ,(=cache-subdirectory "backup")))))
 
 
 
@@ -1328,6 +1321,7 @@ DESCRIPTION is the existing description."
   "f" #'org-roam-node-find
   "r" #'org-roam-capture
   "c" #'org-capture
+  "d" #'org-roam-dailies-goto-today
   "b" (lambda ()
         (interactive)
         (find-file =org-default-bibliography)))
@@ -1452,6 +1446,20 @@ ARG is passed to `vterm' without processing."
 
 (with-eval-after-load 'go-mode
   (keymap-set go-mode-map "C-c s" #'=go-invert-string))
+
+(setq-default eglot-workspace-configuration
+              '((:gopls . ((gofumpt . t)))))
+
+;; START EXPIRMENT
+(with-eval-after-load 'project
+  (defun project-find-go-module (dir)
+    (when-let ((root (locate-dominating-file dir "go.mod")))
+      (cons 'go-module root)))
+
+  (cl-defmethod project-root ((project (head go-module)))
+    (cdr project))
+  (add-hook 'project-find-functions #'project-find-go-module))
+;; END EXPIRMENT
 
 (defun =go-invert-string (start end)
   "Invert the string at point.
@@ -1663,6 +1671,8 @@ The opening \" should be after START and the closing \" should be before END."
 (elpaca (pulumi-yaml :host github :repo "pulumi/pulumi-lsp"
                      :files ("editors/emacs/*"))
   (=lsp-declare pulumi-yaml-mode :require pulumi-yaml)
+  (with-eval-after-load 'pulumi-yaml
+    (keymap-set pulumi-yaml-mode-map "C-M-i" #'completion-at-point))
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yaml") 'pulumi-yaml-mode))
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yml") 'pulumi-yaml-mode))
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Main.yaml") 'pulumi-yaml-mode)))
