@@ -1450,17 +1450,6 @@ ARG is passed to `vterm' without processing."
 (setq-default eglot-workspace-configuration
               '((:gopls . ((gofumpt . t)))))
 
-;; START EXPIRMENT
-(with-eval-after-load 'project
-  (defun project-find-go-module (dir)
-    (when-let ((root (locate-dominating-file dir "go.mod")))
-      (cons 'go-module root)))
-
-  (cl-defmethod project-root ((project (head go-module)))
-    (cdr project))
-  (add-hook 'project-find-functions #'project-find-go-module))
-;; END EXPIRMENT
-
 (defun =go-invert-string (start end)
   "Invert the string at point.
 
