@@ -8,6 +8,18 @@
 (require 'jsonian)
 
 ;;;###autoload
+(add-to-list 'magic-mode-alist '(pulumi-schema--is . pulumi-schema-mode))
+
+;;;###autoload
+(defun pulumi-schema--is ()
+  "Check if the current buffer is a pulumi schema."
+  (and (string-suffix-p "/schema.json" (buffer-file-name))
+       (let ((parts (cdr-safe (reverse (file-name-split (buffer-file-name))))))
+         (and
+          (string-prefix-p "pulumi-resource-" (car-safe parts))
+          (string= "cmd" (nth 1 parts))))))
+
+;;;###autoload
 (define-derived-mode pulumi-schema-mode jsonian-mode "Pulumi Schema"
   "A JSON mode specialized for consuming a Pulumi package Schema."
   (add-hook 'xref-backend-functions #'pulumi-schema--xref-backend nil t))

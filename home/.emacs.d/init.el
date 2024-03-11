@@ -1704,8 +1704,10 @@ The opening \" should be after START and the closing \" should be before END."
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yml") 'pulumi-yaml-mode))
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Main.yaml") 'pulumi-yaml-mode)))
 
+;; Autoload the necessary functions to have this work out of the box.
 (autoload 'pulumi-schema-mode "pulumi-schema.el" nil t)
-
+(autoload 'pulumi-schema--is "pulumi-schema.el" nil t)
+(add-to-list 'magic-mode-alist '(pulumi-schema--is . pulumi-schema-mode))
 
 ;; Pulumi has repos, so many repos. Often, working on a bug in one repository requires
 ;; linking in several others. These functions make adding go module
