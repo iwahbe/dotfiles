@@ -99,6 +99,7 @@ alias cl='clear; ls'
 
 if exe_exists pulumi; then
     alias pu=pulumi
+    alias pu:upgrade='GITHUB_TOKEN=$(gh auth token) upgrade-provider pulumi/$(basename $PWD)'
 fi
 
 if exe_exists terraform; then

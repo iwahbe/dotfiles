@@ -10,6 +10,13 @@
 ;; when a file is loaded, but it does effect what happens when =eval-last-sexp= is used.
 (setq-default lexical-binding t)
 
+;; Add some helpers to the load path.
+;;
+;; We don't add immediately because it has a noticeable performance impact on load init
+;; time: 0.015 seconds.
+(add-hook 'elpaca-after-init-hook
+          (lambda ()
+            (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))))
 
 ;; I declare a custom helper macro for adding hooks. It simplifies quoting, and allows
 ;; multiple hooks to be attached in a single sexp.
@@ -539,10 +546,12 @@ PROC is the process and EVENT is the event that triggered the sentinel."
 ARGS allows this function to be used in hooks.  ARGS is ignored."
   (ignore args)
   (when =1Password--forms
-    (message "Ensuring 1Password variables are loaded")
-    (=1Password--flush)
-    (while =1Password--forms
-      (sit-for 0.05))))
+    (let ((progress (make-progress-reporter "Loading 1Password variables")))
+      (=1Password--flush)
+      (while =1Password--forms
+        (progress-reporter-update progress)
+        (sit-for 0.05))
+      (message "1Password variables loaded"))))
 
 
 
@@ -996,6 +1005,34 @@ ARG is passed directly to `magit-patch-save'."
     (transient-append-suffix 'magit-patch "r"
       '("y" "Yank diff as patch" =magit-patch-yank))))
 
+(defun =find-next-divergent-column ()
+  "Move to the next column where the current line diverges from the next line.
+
+This is useful when finding the place where a line diverges in a diff."
+  (interactive)
+  ;; It is prohibitively slow to perform an end of line check or move point each
+  ;; iteration. Instead, we pre-compute our bound values and then just increment numbers
+  ;; in our hot loop.
+  (let* ((starting-column (current-column))
+         (point (point))
+         (max-point (line-end-position))
+         (compare-point (save-excursion
+                          (next-line)
+                          (if (eq starting-column (current-column))
+                              (point)
+                            (user-error "There is no equivalent character on the line below"))))
+         (max-compare-point (save-excursion
+                              (goto-char compare-point)
+                              (line-end-position))))
+    (while (and
+            (< point max-point)
+            (< compare-point max-compare-point)
+            (equal (char-after point)
+                   (char-after compare-point)))
+      (setq point (1+ point)
+            compare-point (1+ compare-point)))
+    (goto-char point)))
+
 (defun =gh-token ()
   "The current GitHub token, as provided by gh."
   (when-let (executable-find "gh")
@@ -1309,6 +1346,7 @@ DESCRIPTION is the existing description."
   (=advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
   (setq org-cite-global-bibliography (list =org-default-bibliography)))
 
+(autoload #'=org-capture-article (expand-file-name "templates.el" org-directory) nil t)
 (with-eval-after-load 'org
   (with-eval-after-load 'org-roam
     (let ((f (expand-file-name "templates.el" org-directory)))
@@ -1666,22 +1704,8 @@ The opening \" should be after START and the closing \" should be before END."
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yml") 'pulumi-yaml-mode))
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Main.yaml") 'pulumi-yaml-mode)))
 
+(autoload 'pulumi-schema-mode "pulumi-schema.el" nil t)
 
-;; Pulumi defines its providers with a
-;; https://www.pulumi.com/docs/guides/pulumi-packages/schema/. This function follows
-;; internal schema links by leveraging jsonian.
-
-(defun =pulumi-follow-schema-link ()
-  "Follow a link in the pulumi schema."
-  (interactive)
-  (unless (derived-mode-p 'jsonian-mode)
-    (user-error "Requires `jsonian-mode'"))
-  (if-let* ((pos (jsonian--string-at-pos))
-            (s (buffer-substring-no-properties (1+ (car pos)) (1- (cdr pos))))
-            (seperator (string-search "/" s 3))
-            (path (concat "[\"" (substring s 2 seperator) "\"]" "[\"" (substring s (1+ seperator)) "\"]")))
-      (jsonian-find path)
-    (user-error "Something went wrong")))
 
 ;; Pulumi has repos, so many repos. Often, working on a bug in one repository requires
 ;; linking in several others. These functions make adding go module
@@ -1762,15 +1786,56 @@ DEPTH specifies how many levels to search through."
 ;;
 ;; This implementation relies on `exec-path' being good enough to discover a valid ZSH
 ;; implementation, which is then queried asynchronously to find the correct path.
-(let* ((b (get-buffer-create "discover-exec-path" t))
-       (p (start-process "discover-exec-path" b "zsh" "-c" "echo $PATH")))
-  (set-process-sentinel p (lambda (process event)
-                            (when (equal event "finished\n")
-                              (setq exec-path
-                                    (string-split
-                                     (with-current-buffer b (buffer-string))
-                                     ":" t "\n"))
-                              (kill-buffer b)))))
+
+(defun =set-exec-path-from-shell ()
+  "Attempt to set the variable `exec-path' from $SHELL's $PATH."
+  (let* ((b (get-buffer-create "discover-exec-path" t))
+         (p (start-process "discover-exec-path" b shell-file-name shell-command-switch "echo $PATH")))
+    (set-process-sentinel p (lambda (process event)
+                              (when (equal event "finished\n")
+                                ;; If we have discovered a path, set it.
+                                (if-let ((found (string-split
+                                                 (with-current-buffer b (buffer-string))
+                                                 ":" t "\n")))
+                                    (setq exec-path (append found (list exec-directory)))
+                                  (message "Failed to discover exec-path"))
+                                ;; Regardless of if we have discovered a path, kill the
+                                ;; buffer. We won't get another chance here.
+                                (kill-buffer b))))))
+
+(=set-exec-path-from-shell)
+
+;;; Alter
+;;
+;; A small and simple library for building mapping commands.
+
+(defun =alter-word-at-point (&optional f register)
+  "Set REGISTER to a function F that operates on the current word."
+  (interactive "a mapping function:
+c the register to save to:")
+  (set-register register (=alter-word-register--make f)))
+
+(cl-defstruct
+    (=alter-word-register (:constructor nil)
+                          (:constructor =alter-word-register--make (f)))
+  (f nil :read-only t :documentation "The function used to operate on the word at point: (string) -> string."))
+
+(cl-defmethod register-val-insert ((r =alter-word-register))
+  "Call f (accessed from R)."
+  (pcase-let ((`(,beg . ,end) (bounds-of-thing-at-point 'word)))
+    (replace-region-contents beg end
+                             (lambda () (funcall (=alter-word-register-f r) (buffer-string))))))
+
+(cl-defmethod register-val-describe ((r =alter-word-register) _verbose)
+  "Describe the function to call (from R)."
+  (princ "Alter word at point: ")
+  (princ (=alter-word-register-f r)))
+
+(keymap-global-set "M-_" #'kmacro-call-macro)
+
+(=define-keymap =alter-map
+  :global "C-x r a"
+  "w" #'=alter-word-at-point)
 
 ;;; Custom
 
