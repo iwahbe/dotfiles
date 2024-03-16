@@ -20,7 +20,7 @@
 
 ;; I declare a custom helper macro for adding hooks. It simplifies quoting, and allows
 ;; multiple hooks to be attached in a single sexp.
-(defmacro =add-hook (mode &rest hooks)
+(defmacro i/add-hook (mode &rest hooks)
   "Attach multiple HOOKS to a MODE hook.
 It is optional to quote MODE."
   (declare (indent defun))
@@ -33,7 +33,7 @@ It is optional to quote MODE."
 			 ,hook))
 	hooks)))
 
-(defun =advise-once (symbol where function &optional props)
+(defun i/advise-once (symbol where function &optional props)
   "`advise-add' a function that will only trigger once.
 
 SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
@@ -42,7 +42,7 @@ SYMBOL, WHERE, FUNCTION and PROPS are all treated the same as by `advise-add'."
   (advice-add symbol where function props))
 
 (require 'cl-lib)
-(cl-defmacro =define-keymap (name &rest keys &key global parent bind after &allow-other-keys)
+(cl-defmacro i/define-keymap (name &rest keys &key global parent bind after &allow-other-keys)
   "Define a self-describing keymap called NAME consisting of KEYS.
 
 To bind the keymap to a global value, pass a binding to GLOBAL.
@@ -90,14 +90,14 @@ KEYS are (binding function) lists."
              ,c)
         c))))
 
-(defmacro =dbg (form)
+(defmacro i/dbg (form)
   "Print FORM => RES where res is what FORM evaluate to.
 Return RES."
   ;; This is the kind of function that is helpful to have around, but shouldn't make it
   ;; into "production" code.
   `(let ((res ,form)) (message "dbg: %s => %s" '(,@form) res) res))
 
-(defmacro =profile (&rest body)
+(defmacro i/profile (&rest body)
   "Run `profiler' on BODY, then report the result."
   `(let ((time (current-time)))
      (require 'profiler)
@@ -111,32 +111,32 @@ Return RES."
 
 ;;; Cache
 
-(defvar =cache-directory (expand-file-name ".cache" user-emacs-directory)
+(defvar i/cache-directory (expand-file-name ".cache" user-emacs-directory)
   "The directory where a system local cache is stored.")
 
-(defun =cache-subdirectory (domain &optional ensure)
+(defun i/cache-subdirectory (domain &optional ensure)
   "A stable directory to cache files from DOMAIN in.
 
 If ENSURE is non-nil, create the file if it does not exist."
-  (let ((path (expand-file-name (concat domain "/") =cache-directory)))
+  (let ((path (expand-file-name (concat domain "/") i/cache-directory)))
     (when ensure
       (make-directory path t))
     path))
 
-(defun =cache-file (file &optional domain)
+(defun i/cache-file (file &optional domain)
   "A stable file name for FILE, located in DOMAIN if provided."
   (expand-file-name file
 		    (if domain
-			(let ((s (=cache-subdirectory domain)))
+			(let ((s (i/cache-subdirectory domain)))
 			  (unless (file-executable-p s)
 			    (mkdir s))
 			  s)
-		      =cache-directory)))
+		      i/cache-directory)))
 
 ;; Following good practice, we maintain an =assets= folder, where we store /heavy/ files.
 
 
-(defvar =assets-directory (expand-file-name "assets" user-emacs-directory)
+(defvar i/assets-directory (expand-file-name "assets" user-emacs-directory)
   "The directory containing large runtime assets, such as images.")
 
 
@@ -145,7 +145,7 @@ If ENSURE is non-nil, create the file if it does not exist."
 
 ;; I use https://github.com/progfolio/elpaca as my package manager for Emacs.
 
-(defvar elpaca-directory (=cache-subdirectory "elpaca"))
+(defvar elpaca-directory (i/cache-subdirectory "elpaca"))
 
 ;; This is the install script straight from the elpaca repo:
 
@@ -205,7 +205,7 @@ If ENSURE is non-nil, create the file if it does not exist."
 ;; give up on supporting text only situations (such as in the terminal). To that end,
 ;; there is a fall-back option to display only text.
 
-(defun =splash-buffer (&optional window)
+(defun i/splash-buffer (&optional window)
   "The splash screen.
 It is assumed that the splash screen will occupy the whole frame
 when it is created.
@@ -220,51 +220,51 @@ WINDOW is passed via `window-size-change-functions'.  It is ignored."
     (with-current-buffer (get-buffer-create "*Splash Screen*")
       (read-only-mode)
       (make-local-variable 'window-size-change-functions)
-      (add-to-list 'window-size-change-functions #'=splash-buffer)
+      (add-to-list 'window-size-change-functions #'i/splash-buffer)
       (let ((inhibit-read-only t))
 	(unless (eq (buffer-size) 0)
 	  (erase-buffer))
 	(if (and (display-graphic-p) (featurep 'image))
-	    (=splash-buffer--graphic)
-	  (=splash-buffer--text))
+	    (i/splash-buffer--graphic)
+	  (i/splash-buffer--text))
 	(setq cursor-type nil)
 	(goto-char (point-min))
 	(setq mode-line-format nil)
 	(current-buffer)))))
 
 ;; Emacs uses `initial-buffer-choice' to determine what buffer it should start in.
-(setq initial-buffer-choice #'=splash-buffer)
+(setq initial-buffer-choice #'i/splash-buffer)
 
 ;; Here we want to insert a random image from our list of graphic banner images. Graphic
 ;; banner images are stored in the "assets" folder. We define our list of images.
 
-(defvar =emacs-graphic-banners
-  (mapcar (lambda (x) (expand-file-name x =assets-directory))
+(defvar i/emacs-graphic-banners
+  (mapcar (lambda (x) (expand-file-name x i/assets-directory))
 	  '("gnu-head.svg"
 	    "emacs-icon.svg"))
   "A list of graphical banners to open Emacs with.
 Each element is expected to be the path to a SVG file.")
 
-(defvar =emacs-graphic-banner
-  (nth (random (length =emacs-graphic-banners))
-       =emacs-graphic-banners)
+(defvar i/emacs-graphic-banner
+  (nth (random (length i/emacs-graphic-banners))
+       i/emacs-graphic-banners)
   "The randomly chosen graphic banner to use for this session.
 This is calculated once, so it doesn't change during redisplay.")
 
 ;; We then define what a graphic splash buffer will be: A centered image 1/3 down the
 ;; frame.
 
-(defun =splash-buffer--graphic ()
+(defun i/splash-buffer--graphic ()
   "Display the splash screen with graphics."
   (let* ((img
           ;; Each image is expected to take up 3/4 of the smallest dimension of screen
           ;; space.
           (if (>= (frame-pixel-width) (frame-pixel-height))
               (create-image
-	       =emacs-graphic-banner
+	       i/emacs-graphic-banner
 	       nil nil :height (round (* (frame-pixel-height) 0.75)))
 	    (create-image
-	     =emacs-graphic-banner
+	     i/emacs-graphic-banner
 	     nil nil :width (round (* (frame-pixel-width) 0.75)))))
 	 (img-size (image-size img))
 	 (img-width (round (car img-size)))
@@ -285,7 +285,7 @@ This is calculated once, so it doesn't change during redisplay.")
 ;; https://patorjk.com/software/taag/#p=display&f=Graffiti&t=Emacs.
 
 
-(defvar =emacs-text-banners
+(defvar i/emacs-text-banners
   '(("███████╗███╗   ███╗ █████╗  ██████╗███████╗"
      "██╔════╝████╗ ████║██╔══██╗██╔════╝██╔════╝"
      "█████╗  ██╔████╔██║███████║██║     ███████╗"
@@ -303,17 +303,17 @@ This is calculated once, so it doesn't change during redisplay.")
 Each banner is expected to be a list of text, where each text
 element is a single line.")
 
-(defvar =emacs-text-banner
-  (nth (random (length =emacs-text-banners)) =emacs-text-banners)
+(defvar i/emacs-text-banner
+  (nth (random (length i/emacs-text-banners)) i/emacs-text-banners)
   "The text banner to use for this session.
 This is calculated once so it doesn't change during redisplay")
 
 ;; The display function is similar to the graphic version, aiming to put the text centered
 ;; 1/3 down the frame.
 
-(defun =splash-buffer--text ()
+(defun i/splash-buffer--text ()
   "Display the splash screen with only text."
-  (let ((banner =emacs-text-banner)
+  (let ((banner i/emacs-text-banner)
 	(empty-line "\n"))
     (dotimes (_ (- (/ (frame-height) 3) (/ (length banner) 2) 2))
       (insert empty-line))
@@ -383,10 +383,10 @@ This is calculated once so it doesn't change during redisplay")
 ;; buffer, and to persist that between sessions. It does that by writing each buffer
 ;; position to a file, and then referring to the file when a buffer is revisited. This is
 ;; fine, but we want to redirect the file to our cache.
-(setq save-place-file (=cache-file "places"))
+(setq save-place-file (i/cache-file "places"))
 (save-place-mode +1)
 
-(setq savehist-file (=cache-file "savehist"))
+(setq savehist-file (i/cache-file "savehist"))
 (savehist-mode +1)
 
 ;; Add smooth scrolling to GUI Emacs.
@@ -413,14 +413,14 @@ This is calculated once so it doesn't change during redisplay")
 ;; is defined in the variable `custom-enabled-themes'.
 
 
-(defvar =default-themes '((light . tsdh-light)
+(defvar i/default-themes '((light . tsdh-light)
                           (dark  . tsdh-dark))
   "Themes that the system is aware of.")
 
 ;; When I load a theme, I generally only want that theme to apply. I don't want the
 ;; previous theme to effect the current experience. To solve this, I define a `load-theme'
-;; wrapper called `=load-theme'.
-(defun =load-theme (theme)
+;; wrapper called `i/load-theme'.
+(defun i/load-theme (theme)
   "Load THEME.
 
 Other currently loaded themes are disabled."
@@ -428,24 +428,24 @@ Other currently loaded themes are disabled."
    (list (intern (completing-read "Load custom theme: "
                                   (append (mapcar #'symbol-name
 				                  (custom-available-themes))
-                                          (mapcar #'car =default-themes))
+                                          (mapcar #'car i/default-themes))
                                   nil t))))
-  (load-theme (alist-get theme =default-themes theme) t)
+  (load-theme (alist-get theme i/default-themes theme) t)
   ;; Disable previous themes
   (mapc #'disable-theme (cdr custom-enabled-themes)))
 
 (elpaca moe-theme
-  (setq =default-themes '((light . moe-light)
+  (setq i/default-themes '((light . moe-light)
                           (dark  . moe-dark)))
   ;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
   ;; hooks to support system appearance change. I want use these hooks when available.
   (if (boundp 'ns-system-appearance)
       ;; This hook will be called later during the startup process, so we don't need to
-      ;; manually call `=load-theme'.
-      (=add-hook ns-system-appearance-change-functions #'=load-theme)
+      ;; manually call `i/load-theme'.
+      (i/add-hook ns-system-appearance-change-functions #'i/load-theme)
     ;; When there isn't any system input for the theme, we will just load the ='light=
     ;; theme by default.
-    (=load-theme 'light)))
+    (i/load-theme 'light)))
 
 
 
@@ -461,29 +461,29 @@ Other currently loaded themes are disabled."
 ;; using "op inject" command, and then `eval-buffer' the result.
 
 
-(defvar =1Password--forms nil
+(defvar i/1Password--forms nil
   "A list of forms to evaluate after templating through 1Password.
 
 After forms are evaluated, they are removed from this var.")
 
-(defmacro =1Password-setq (name path &rest consuming-funcs)
+(defmacro i/1Password-setq (name path &rest consuming-funcs)
   "Declare that NAME should be filled from 1Password.
 PATH is the 1Password path to the item.
 CONSUMING-FUNCS is a list of functions that are know to consume NAME.
 
 Each consuming func is adviced to ensure that values set with
-`=1Password-setq' are actually set before their consuming
+`i/1Password-setq' are actually set before their consuming
 functions are run."
   `(progn
-     (setq =1Password--forms
+     (setq i/1Password--forms
            (cons (list 'setq ',name ,(concat "{{ op://Personal/" path " }}"))
-                 =1Password--forms))
+                 i/1Password--forms))
      ,@(mapcar (lambda (f)
-                 `(advice-add ,f :before #'=1Password--ensure))
+                 `(advice-add ,f :before #'i/1Password--ensure))
                consuming-funcs)))
 
-(defun =1Password--flush ()
-  "Evaluate `=1Password--forms' after passing it through the 1Password CLI."
+(defun i/1Password--flush ()
+  "Evaluate `i/1Password--forms' after passing it through the 1Password CLI."
   (if-let ((op (executable-find "op")))
       ;; Create a temporary file for `op' to consume. We do this instead of piping into
       ;; `op' directly because `op' (as of April, 2023) doesn't allow itself to be created
@@ -501,17 +501,17 @@ functions are run."
       ;; contains placeholders for our secret values, not the values themselves.
       (let ((tmp (make-temp-file "1password.template")))
         (with-temp-file tmp
-          (insert (mapconcat #'pp-to-string =1Password--forms "\n")))
+          (insert (mapconcat #'pp-to-string i/1Password--forms "\n")))
         (with-current-buffer (process-buffer
                               (make-process :name "1Password Init"
                                             :buffer "1Password"
                                             :command `(,op "inject" "--in-file" ,tmp)
                                             :connecton-type 'pipe
-                                            :sentinel #'=1Password--sentinel))
-          (set (make-local-variable '=1Password-template-file) tmp)))
+                                            :sentinel #'i/1Password--sentinel))
+          (set (make-local-variable 'i/1Password-template-file) tmp)))
     (warn "Could not find 1Password CLI")))
 
-(defun =1Password--sentinel (proc event)
+(defun i/1Password--sentinel (proc event)
   "The sentinel that controls the 1Password injection process.
 PROC is the process and EVENT is the event that triggered the sentinel."
   (when (string-match "finished\n" event)
@@ -529,26 +529,26 @@ PROC is the process and EVENT is the event that triggered the sentinel."
           (error "1Password buffer died unexpectedly"))
         ;; Since we know the input file is not being used (because the consuming process
         ;; exited), we can clean up.
-        (delete-file (buffer-local-value '=1Password-template-file b))
-        ;; We mark ourselves as done, freeing functions like `=1Password--ensure' to exit.
-        (setq =1Password--forms nil)
+        (delete-file (buffer-local-value 'i/1Password-template-file b))
+        ;; We mark ourselves as done, freeing functions like `i/1Password--ensure' to exit.
+        (setq i/1Password--forms nil)
         ;; We then evaluate the buffer. This doesn't present a race condition, since Emacs
         ;; doesn't interrupt running code, even with Sentinels.
         (eval-buffer b)
         (kill-buffer b)))))
 
-(defun =1Password-init-async ()
+(defun i/1Password-init-async ()
   "Asyncronously evaluate all declared 1Password variables."
-  (=1Password--flush))
+  (i/1Password--flush))
 
-(defun =1Password--ensure (&rest args)
+(defun i/1Password--ensure (&rest args)
   "Syncronously ensure that 1Password has loaded all declared values.
 ARGS allows this function to be used in hooks.  ARGS is ignored."
   (ignore args)
-  (when =1Password--forms
+  (when i/1Password--forms
     (let ((progress (make-progress-reporter "Loading 1Password variables")))
-      (=1Password--flush)
-      (while =1Password--forms
+      (i/1Password--flush)
+      (while i/1Password--forms
         (progress-reporter-update progress)
         (sit-for 0.05))
       (message "1Password variables loaded"))))
@@ -621,8 +621,8 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 (custom-set-variables
  ;; Move auto-save files (#foo#) and backup files (foo~) into the cache.
- '(auto-save-file-name-transforms `((".*" ,(concat (=cache-subdirectory "autosaves" t) "\\1") t)))
- '(backup-directory-alist `(("." . ,(=cache-subdirectory "backup")))))
+ '(auto-save-file-name-transforms `((".*" ,(concat (i/cache-subdirectory "autosaves" t) "\\1") t)))
+ '(backup-directory-alist `(("." . ,(i/cache-subdirectory "backup")))))
 
 
 
@@ -634,9 +634,9 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 ;; project.el caches which projects have been accessed, which needed to be re-mapped into
 ;; the cache directory.
-(setq project-list-file (=cache-file "projects"))
+(setq project-list-file (i/cache-file "projects"))
 
-(defun =project-switch-to-most-recent ()
+(defun i/project-switch-to-most-recent ()
   "Switch to the most recently used buffer in a project."
   (interactive)
   (if-let* ((proj (project-current nil project-current-directory-override))
@@ -652,10 +652,10 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 (require 'project)
 
-(defun =project-switch-project (dir)
+(defun i/project-switch-project (dir)
   "\"Switch\" to another project by running an Emacs command.
 The available commands are presented as a dispatch menu
-made from `=project-prefix-map'.
+made from `i/project-prefix-map'.
 
 When called in a program, it will use the project corresponding
 to directory DIR."
@@ -664,24 +664,24 @@ to directory DIR."
   (let ((project-current-directory-override dir)
         (default-directory dir))
     ;; We use `which-key-show-keymap' to provide a "dispatch menu", and to block on input.
-    (which-key-show-keymap '=project-prefix-map)
+    (which-key-show-keymap 'i/project-prefix-map)
     ;; Typing a command on the `which-key' menu just dismisses the menu, so we recover the
     ;; command from `recent-keys' and replay it on our key map.
     (call-interactively
-     (keymap-lookup =project-prefix-map
+     (keymap-lookup i/project-prefix-map
                     (key-description
                      (vector (let ((recent (recent-keys)))
                                (aref recent (1- (length recent))))))))))
 
-(=define-keymap =project-prefix-map
+(i/define-keymap i/project-prefix-map
   :global "C-x p"
   :parent project-prefix-map
   "C-f" #'consult-find
   "g" #'consult-ripgrep
   "v" #'magit
-  "t" #'=project-vterm
-  "r" #'=project-switch-to-most-recent
-  "p" #'=project-switch-project)
+  "t" #'i/project-vterm
+  "r" #'i/project-switch-to-most-recent
+  "p" #'i/project-switch-project)
 
 
 
@@ -750,6 +750,12 @@ to directory DIR."
 
 
 
+;; Copilot
+
+(elpaca (copilot :host github :repo "copilot-emacs/copilot.el" :files ("dist" "*.el"))
+  (with-eval-after-load 'copilot
+    (add-to-list 'copilot-major-mode-alist '("jsonian" . "json"))))
+
 ;;; Consult
 
 ;; https://github.com/minad/consult is a utility package that provides a boat load of
@@ -804,7 +810,7 @@ to directory DIR."
 ;; We want spelling support for text all text modes, so we turn on `flyspell-mode' for
 ;; `text-mode'. This applies for all derived modes as well.
 
-(=add-hook 'text-mode-hook
+(i/add-hook 'text-mode-hook
   #'visual-line-mode)
 
 
@@ -817,7 +823,7 @@ to directory DIR."
 
 ;; Programming languages introduce a new type of error: syntax errors. This is handled by
 ;; `flymake', which we enable for all programming languages.
-(=add-hook prog-mode-hook #'flymake-mode)
+(i/add-hook prog-mode-hook #'flymake-mode)
 
 
 
@@ -846,15 +852,15 @@ to directory DIR."
 
 ;; By default, treesit installs grammars in (expand-file-name "tree-sitter"
 ;; user-emacs-directory). We want to redirect this to a directory in
-;; `=cache-directory'/tree-sitter.
-(defvar =treesit-language-cache (=cache-subdirectory "tree-sitter")
+;; `i/cache-directory'/tree-sitter.
+(defvar i/treesit-language-cache (i/cache-subdirectory "tree-sitter")
   "The directory to cache compiled tree-sitter language files.")
 
-(add-to-list 'treesit-extra-load-path =treesit-language-cache)
+(add-to-list 'treesit-extra-load-path i/treesit-language-cache)
 
 (advice-add #'treesit--install-language-grammar-1 :around
 	    (lambda (fn out-dir &rest args)
-	      (apply fn (or out-dir =treesit-language-cache) args)))
+	      (apply fn (or out-dir i/treesit-language-cache) args)))
 
 
 ;;; Emacs as a Server
@@ -864,7 +870,7 @@ to directory DIR."
   (when (equal server-name "server")
     (setq server-name (format "server-%s" (emacs-pid)))))
 
-(defun =server-ensure ()
+(defun i/server-ensure ()
   "Ensure that an instance of a `server' is running."
   (require 'server)
   (unless server-process
@@ -878,7 +884,7 @@ to directory DIR."
 ;; https://microsoft.github.io/language-server-protocol/. `eglot' is the built in LSP
 ;; consumer for Emacs. It doesn't require much setup.
 
-(defun =lsp--ensure ()
+(defun i/lsp--ensure ()
   "Turn on the mode appropriate LSP mode."
   ;; `eglot-ensure' needs to be called via each `major-mode's startup hook. Because of the
   ;; blocking nature of `eglot-ensure', we provide wrapper function that will allow the
@@ -893,12 +899,12 @@ to directory DIR."
                                           :documentHighlightProvider)
       eglot-autoshutdown t)
 
-(=define-keymap =lsp-map
+(i/define-keymap i/lsp-map
   "Common functions for LSP."
   "a" #'eglot-code-actions
   "r" #'eglot-rename)
 
-(cl-defmacro =lsp-declare (mode &key require program)
+(cl-defmacro i/lsp-declare (mode &key require program)
   "Declare that MODE should launch a LSP server.
 
 REQUIRE is the feature provided by the package.  It is assumed to
@@ -913,9 +919,9 @@ underlying LSP plugin if not specified."
      (with-eval-after-load ',(or require mode)
 
        ;; Ensure that we have `eglot' up and running on new files.
-       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'=lsp--ensure)
+       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'i/lsp--ensure)
        ;; Create a common binding to commonly used LSP functions.
-       (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" =lsp-map))))
+       (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" i/lsp-map))))
 
 
 
@@ -937,12 +943,12 @@ underlying LSP plugin if not specified."
 ;; By default, compilation buffers don't handle ansi color correctly.
 ;;
 ;; This is ridiculous, and fixable.
-(defun =compilation-filter-hook ()
+(defun i/compilation-filter-hook ()
   "Apply `ansi-color' to a compilation buffer."
   (require 'ansi-color)
   (ansi-color-apply-on-region compilation-filter-start (point)))
 
-(add-hook 'compilation-filter-hook #'=compilation-filter-hook)
+(add-hook 'compilation-filter-hook #'i/compilation-filter-hook)
 
 
 
@@ -960,7 +966,7 @@ underlying LSP plugin if not specified."
   ;; `highligh-defined-face-use-itself' restores the default faces. This effectively sets
   ;; highlight-defined-${KIND}-name-face to font-lock-${KIND}-name-face.
   (setq highlight-defined-face-use-itself t) ;; Use standard faces when highlighting.
-  (=add-hook emacs-lisp-mode-hook #'highlight-defined-mode))
+  (i/add-hook emacs-lisp-mode-hook #'highlight-defined-mode))
 
 
 
@@ -979,7 +985,7 @@ underlying LSP plugin if not specified."
 
 ;; https://magit.vc is everyone's favorite git client, and I'm no exception.
 
-(defun =magit-patch-yank (&optional arg)
+(defun i/magit-patch-yank (&optional arg)
   "Save the current patch to the kill ring.
 
 ARG is passed directly to `magit-patch-save'."
@@ -1003,9 +1009,9 @@ ARG is passed directly to `magit-patch-save'."
   (with-eval-after-load 'magit-patch
     (require 'magit-patch)
     (transient-append-suffix 'magit-patch "r"
-      '("y" "Yank diff as patch" =magit-patch-yank))))
+      '("y" "Yank diff as patch" i/magit-patch-yank))))
 
-(defun =find-next-divergent-column ()
+(defun i/find-next-divergent-column ()
   "Move to the next column where the current line diverges from the next line.
 
 This is useful when finding the place where a line diverges in a diff."
@@ -1033,10 +1039,10 @@ This is useful when finding the place where a line diverges in a diff."
             compare-point (1+ compare-point)))
     (goto-char point)))
 
-(defun =gh-token ()
+(defun i/gh-token ()
   "The current GitHub token, as provided by gh."
   (when-let (executable-find "gh")
-    (setq =gh--token
+    (setq i/gh--token
           (with-temp-buffer
             (shell-command "gh auth token" (current-buffer))
             (string-trim
@@ -1081,7 +1087,7 @@ See `auth-source-search' for details on SPEC."
                (list 'elisp-source
                      (list :host "api.github.com"
                            :user "iwahbe^forge"
-                           :secret #'=gh-token)))
+                           :secret #'i/gh-token)))
 
   (add-hook 'auth-source-backend-parser-functions
             #'auth-source-backends-parser-elisp))
@@ -1100,7 +1106,7 @@ See `auth-source-search' for details on SPEC."
 ;; We can quickly and easily retrieve this information. We save the generated URL into the
 ;; `kill-ring', and print it to the screen.
 
-(defun =github-code-region (start end)
+(defun i/github-code-region (start end)
   "Copy the GitHub permalink of the highlighted region into the `kill-ring'.
 Operate on the region defined by START to END."
   (interactive "r")
@@ -1123,22 +1129,22 @@ Operate on the region defined by START to END."
 
 ;; Magit handles it's lovely UX with a subsidiary package:
 ;; https://github.com/magit/transient, which caches its history locally. We need to remap
-;; this into `=cache-directory' to keep .emacs.d clean. We don't need to `require'
+;; this into `i/cache-directory' to keep .emacs.d clean. We don't need to `require'
 ;; transient ourselves, since Magit depends on it.
 
 ;; Transient does not define it's own history dir, so we do it ourselves.
-(defvar =transient-cache-dir (=cache-subdirectory "transient")
+(defvar i/transient-cache-dir (i/cache-subdirectory "transient")
   "The directory where transient history files are stored.")
 (setq
- transient-history-file (expand-file-name "history.el" =transient-cache-dir)
- transient-values-file (expand-file-name "values.el" =transient-cache-dir)
- transient-levels-file (expand-file-name "levels.el" =transient-cache-dir))
+ transient-history-file (expand-file-name "history.el" i/transient-cache-dir)
+ transient-values-file (expand-file-name "values.el" i/transient-cache-dir)
+ transient-levels-file (expand-file-name "levels.el" i/transient-cache-dir))
 
 
 
 ;;; Major Modes: `org-mode'
 
-(defvar =org-babel-languages
+(defvar i/org-babel-languages
   '(calc
     emacs-lisp
     shell)
@@ -1150,14 +1156,14 @@ Operate on the region defined by START to END."
 (elpaca org
   ;; Loading just emacs-lisp and shell takes 0.08 seconds. We don't want to do this during
   ;; startup, so we defer loading until it is used.
-  (=advise-once
+  (i/advise-once
    #'org-babel-execute-src-block
    :before (lambda (&rest _)
              (org-babel-do-load-languages
               'org-babel-load-languages
               (mapcar (lambda (lang)
                         (cons lang t))
-                      =org-babel-languages))))
+                      i/org-babel-languages))))
 
   (require 'ol)
   (org-link-set-parameters "gh"
@@ -1238,7 +1244,7 @@ DESCRIPTION is the existing description."
 ;; $HOME/org, but I prefer ~/Documents/org, since it is synced by iCloud. This makes my
 ;; *.org files accessible on my iPhone and iPad.
 (setq org-directory "~/Documents/org"
-      org-id-locations-file (=cache-file "id-locations" "org"))
+      org-id-locations-file (i/cache-file "id-locations" "org"))
 
 ;; `org-mode' is primarily used for reading, so it's worth making it look as nice as
 ;; possible
@@ -1253,7 +1259,7 @@ DESCRIPTION is the existing description."
  org-hide-leading-stars t)
 
 ;; I replace stand org bullets with graphical overlays.
-(elpaca org-bullets (=add-hook org-mode-hook #'org-bullets-mode))
+(elpaca org-bullets (i/add-hook org-mode-hook #'org-bullets-mode))
 
 ;; I would prefer that org is read with variable width text, but I need source blocks and
 ;; tables to be rendered with fixed width text. This can be accomplished by overriding org
@@ -1290,7 +1296,7 @@ DESCRIPTION is the existing description."
   (setq org-latex-src-block-backend 'engraved))
 
 ;; I can now safely enable variable pitch mode.
-(=add-hook org-mode-hook #'variable-pitch-mode)
+(i/add-hook org-mode-hook #'variable-pitch-mode)
 
 
 ;; `org-mode' defines a "TODO" item as any header that begins with a todo keyword.  The
@@ -1336,24 +1342,24 @@ DESCRIPTION is the existing description."
 ;; extension to `org-mode'.
 (elpaca org-roam
   (setq org-roam-directory (expand-file-name "roam" org-directory)
-	org-roam-db-location (=cache-file "roam.db" "org"))
+	org-roam-db-location (i/cache-file "roam.db" "org"))
 
-  (defvar =org-default-bibliography (expand-file-name "global.bib" org-roam-directory)
+  (defvar i/org-default-bibliography (expand-file-name "global.bib" org-roam-directory)
     "A bibliography where org associated entries are stored.")
 
   ;; `org-roam-node-list' is called before a list of nodes is displayed to the user. We
   ;; use it as a prompt to turn on database syncing without slowing down startup.
-  (=advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
-  (setq org-cite-global-bibliography (list =org-default-bibliography)))
+  (i/advise-once #'org-roam-node-list :before (lambda (&rest _) (org-roam-db-autosync-mode +1)))
+  (setq org-cite-global-bibliography (list i/org-default-bibliography)))
 
-(autoload #'=org-capture-article (expand-file-name "templates.el" org-directory) nil t)
+(autoload #'i/org-capture-article (expand-file-name "templates.el" org-directory) nil t)
 (with-eval-after-load 'org
   (with-eval-after-load 'org-roam
     (let ((f (expand-file-name "templates.el" org-directory)))
       (when (file-exists-p f)
         (load-file f)))))
 
-(=define-keymap =org-global-map
+(i/define-keymap i/org-global-map
   "My globally accessible org map."
   :global "M-o"
   "f" #'org-roam-node-find
@@ -1362,7 +1368,7 @@ DESCRIPTION is the existing description."
   "d" #'org-roam-dailies-goto-today
   "b" (lambda ()
         (interactive)
-        (find-file =org-default-bibliography)))
+        (find-file i/org-default-bibliography)))
 
 (with-eval-after-load 'org-roam
   ;; From https://jethrokuan.github.io/org-roam-guide/
@@ -1379,10 +1385,10 @@ DESCRIPTION is the existing description."
         ;; Here `${type}' is referencing the `org-roam-node-type'.
         (concat "${type:15} ${title:*} " (propertize "${tags:10}" 'face 'org-tag))))
 
-(=define-keymap =org-roam-leader-map
+(i/define-keymap i/org-roam-leader-map
   "Org specific keybindings for `org-roam'.
 
-Unlike `=org-global-map', these keys are only accessible in an
+Unlike `i/org-global-map', these keys are only accessible in an
 `org-mode' buffer."
   :bind (org-mode-map "C-c r")
   :after 'org
@@ -1392,7 +1398,7 @@ Unlike `=org-global-map', these keys are only accessible in an
   "b" #'org-roam-buffer-toggle)
 
 (with-eval-after-load 'org-mode
-  (keymap-set org-mode-map "C-l M-l" #'=org-describe-link))
+  (keymap-set org-mode-map "C-l M-l" #'i/org-describe-link))
 
 ;; Emacs has `sh-mode', but no `zsh-mode'. Unfortunately, `org-mode' expects a mode called
 ;; `zsh-mode' when activating `org-edit-special'. Since the built-in `zsh-mode' can handle
@@ -1415,7 +1421,7 @@ Unlike `=org-global-map', these keys are only accessible in an
 ;; terminal, just like Termnial.app or https://github.com/alacritty/alacritty.
 (elpaca vterm
   (setq vterm-max-scrollback 10000)
-  (=advise-once #'vterm :before
+  (i/advise-once #'vterm :before
                 (lambda (&rest _)
                   ;; `vterm' is capable of running Emacs recursively, but exiting is
                   ;; hard. To solve this problem, I have aliased "emacs" to "emacsclient"
@@ -1430,10 +1436,10 @@ Unlike `=org-global-map', these keys are only accessible in an
                   ;; See
                   ;; https://www.gnu.org/software/emacs/manual/html_node/emacs/emacsclient-Options.html
                   ;; for details.
-                  (=server-ensure)
+                  (i/server-ensure)
                   (push (concat "EMACS_SOCKET_NAME=" server-name) vterm-environment))))
 
-(defun =project-vterm (&optional arg)
+(defun i/project-vterm (&optional arg)
   "A project aware invocation of `vterm'.
 ARG is passed to `vterm' without processing."
   (interactive)
@@ -1445,7 +1451,7 @@ ARG is passed to `vterm' without processing."
     (vterm arg)))
 
 (with-eval-after-load 'project
-  (defalias 'project-shell '=project-vterm)
+  (defalias 'project-shell 'i/project-vterm)
 
   ;; We ensure that `vterm' buffers are cleaned up when they are a part of a project by
   ;; adding them to `project-kill-buffers'.
@@ -1462,7 +1468,7 @@ ARG is passed to `vterm' without processing."
 ;; the running Emacs instance.
 
 ;; Setup format on save.
-(=add-hook bibtex-mode-hook
+(i/add-hook bibtex-mode-hook
   (lambda ()
     (add-hook 'before-save-hook #'bibtex-reformat nil t)))
 
@@ -1477,18 +1483,18 @@ ARG is passed to `vterm' without processing."
 ;;; Major Modes: `go-mode'
 
 (elpaca go-mode)
-(=lsp-declare go-mode)
+(i/lsp-declare go-mode)
 
-(=add-hook go-mode-hook
+(i/add-hook go-mode-hook
   (apply-partially #'add-hook 'before-save-hook #'gofmt-before-save nil t))
 
 (with-eval-after-load 'go-mode
-  (keymap-set go-mode-map "C-c s" #'=go-invert-string))
+  (keymap-set go-mode-map "C-c s" #'i/go-invert-string))
 
 (setq-default eglot-workspace-configuration
               '((:gopls . ((gofumpt . t)))))
 
-(defun =go-invert-string (start end)
+(defun i/go-invert-string (start end)
   "Invert the string at point.
 
 If the region is active, then the region is interpreted to define
@@ -1507,12 +1513,12 @@ a raw string literal and vice versa."
     (?`
      (unless (eq (char-before end) ?`)
        (user-error "Expected ` at region end, found %c" (char-before end)))
-     (=go--string-raw-to-interpreted start end))
-    (?\" (=go--string-interpreted-to-raw start end))
+     (i/go--string-raw-to-interpreted start end))
+    (?\" (i/go--string-interpreted-to-raw start end))
     (_ (user-error "Expected the region to start with %c or %c, found %c"
                    ?\" ?` (char-after start)))))
 
-(defun =go--string-raw-to-interpreted (start end)
+(defun i/go--string-raw-to-interpreted (start end)
   "Convert a raw string literal to an interpreted string literal.
 
 The opening ` should be after START and the closing ` should be before END."
@@ -1539,7 +1545,7 @@ The opening ` should be after START and the closing ` should be before END."
       (delete-char 1)
       (insert-char ?\"))))
 
-(defun =go--string-interpreted-to-raw (start end)
+(defun i/go--string-interpreted-to-raw (start end)
   "Convert a interpreted string literal to an raw string literal.
 
 The opening \" should be after START and the closing \" should be before END."
@@ -1613,7 +1619,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; `typescript-ts-mode' is loaded. By including the above directly in our init file, we
 ;; get the desired behavior.
 
-(=lsp-declare typescript-ts-mode)
+(i/lsp-declare typescript-ts-mode)
 
 
 
@@ -1622,7 +1628,7 @@ The opening \" should be after START and the closing \" should be before END."
 (if (treesit-ready-p 'python)
     (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode)))
 
-(=lsp-declare python-mode)
+(i/lsp-declare python-mode)
 
 
 
@@ -1632,7 +1638,7 @@ The opening \" should be after START and the closing \" should be before END."
 (elpaca rust-mode
   (setq rust-format-on-save t))
 
-(=lsp-declare rust-mode)
+(i/lsp-declare rust-mode)
 
 ;;; Major Modes: `elixir-mode'
 
@@ -1659,7 +1665,7 @@ The opening \" should be after START and the closing \" should be before END."
            (not (eq (cdr el) 'elixir-ts-mode)))
          auto-mode-alist)))
 
-(=lsp-declare elixir-mode :program "elixir-ls")
+(i/lsp-declare elixir-mode :program "elixir-ls")
 
 (provide 'elixir-mode)
 
@@ -1685,7 +1691,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
 (elpaca (chat.el :host github :repo "iwahbe/chat.el")
   (setq chat-model "gpt-4-1106-preview")
-  (=1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key))
+  (i/1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key))
 
 
 
@@ -1697,7 +1703,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; The largest in terms of scope (but not code) is a special mode for Pulumi YAML:
 (elpaca (pulumi-yaml :host github :repo "pulumi/pulumi-lsp"
                      :files ("editors/emacs/*"))
-  (=lsp-declare pulumi-yaml-mode :require pulumi-yaml)
+  (i/lsp-declare pulumi-yaml-mode :require pulumi-yaml)
   (with-eval-after-load 'pulumi-yaml
     (keymap-set pulumi-yaml-mode-map "C-M-i" #'completion-at-point))
   (add-to-list 'auto-mode-alist (cons (regexp-quote "Pulumi.yaml") 'pulumi-yaml-mode))
@@ -1714,7 +1720,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; https://go.dev/ref/mod#go-mod-file-replace directives to other Pulumi repositories
 ;; easy.
 
-(defun =pulumi-go-src-root ()
+(defun i/pulumi-go-src-root ()
   "The root of the pulumi go src."
   (expand-file-name
    "src/github.com/pulumi"
@@ -1726,16 +1732,16 @@ The opening \" should be after START and the closing \" should be before END."
       user-login-name
       "/Users" )))))
 
-(defun =pulumi-go-projects ()
+(defun i/pulumi-go-projects ()
   "A list of go project paths under the pulumi org."
   (seq-map #'car
            (seq-filter (lambda (attr)
                          (and
                           (cadr attr) ;; A directory
                           (not (member (car attr) '("." ".." "templates")))))
-                       (directory-files-and-attributes (=pulumi-go-src-root)))))
+                       (directory-files-and-attributes (i/pulumi-go-src-root)))))
 
-(defun =pulumi-go-modules (dir depth)
+(defun i/pulumi-go-modules (dir depth)
   "A list of go paths contained in DIR.
 DEPTH specifies how many levels to search through."
   (when (and dir (>= depth 1) (file-directory-p dir))
@@ -1752,32 +1758,32 @@ DEPTH specifies how many levels to search through."
         (flatten-list
          (seq-filter #'identity
                      (seq-map
-                      (lambda (x) (=pulumi-go-modules (expand-file-name x dir) (1- depth)))
+                      (lambda (x) (i/pulumi-go-modules (expand-file-name x dir) (1- depth)))
                       (seq-filter (lambda (x) (not (member x '("." ".."))))
                                   (directory-files dir)))))))))
 
-(defun =pulumi-module-path-map ()
+(defun i/pulumi-module-path-map ()
   (let ((m (make-hash-table :test #'equal))
-        (root (=pulumi-go-src-root)))
+        (root (i/pulumi-go-src-root)))
     (mapc
      (lambda (dir)
        (let* ((p (expand-file-name dir root))
-              (path-and-mods (=pulumi-go-modules p 2)))
+              (path-and-mods (i/pulumi-go-modules p 2)))
          (while path-and-mods
            (puthash (cadr path-and-mods) (car path-and-mods) m)
            (setq path-and-mods (cddr path-and-mods)))))
-     (=pulumi-go-projects))
+     (i/pulumi-go-projects))
     m))
 
-(defun =pulumi-replace (&optional arg)
+(defun i/pulumi-replace (&optional arg)
   "Insert the appropriate `replace` directive for a pulumi project."
   (interactive
    (list (completing-read "Select replace target: "
-                          (=pulumi-module-path-map)
+                          (i/pulumi-module-path-map)
                           nil t)))
   (insert "replace " arg " => "
           (file-relative-name
-           (gethash arg (=pulumi-module-path-map)))
+           (gethash arg (i/pulumi-module-path-map)))
           "\n"))
 
 
@@ -1789,7 +1795,7 @@ DEPTH specifies how many levels to search through."
 ;; This implementation relies on `exec-path' being good enough to discover a valid ZSH
 ;; implementation, which is then queried asynchronously to find the correct path.
 
-(defun =set-exec-path-from-shell ()
+(defun i/set-exec-path-from-shell ()
   "Attempt to set the variable `exec-path' from $SHELL's $PATH."
   (let* ((b (get-buffer-create "discover-exec-path" t))
          (p (start-process "discover-exec-path" b shell-file-name shell-command-switch "echo $PATH")))
@@ -1805,39 +1811,39 @@ DEPTH specifies how many levels to search through."
                                 ;; buffer. We won't get another chance here.
                                 (kill-buffer b))))))
 
-(=set-exec-path-from-shell)
+(i/set-exec-path-from-shell)
 
 ;;; Alter
 ;;
 ;; A small and simple library for building mapping commands.
 
-(defun =alter-word-at-point (&optional f register)
+(defun i/alter-word-at-point (&optional f register)
   "Set REGISTER to a function F that operates on the current word."
   (interactive "a mapping function:
 c the register to save to:")
-  (set-register register (=alter-word-register--make f)))
+  (set-register register (i/alter-word-register--make f)))
 
 (cl-defstruct
-    (=alter-word-register (:constructor nil)
-                          (:constructor =alter-word-register--make (f)))
+    (i/alter-word-register (:constructor nil)
+                          (:constructor i/alter-word-register--make (f)))
   (f nil :read-only t :documentation "The function used to operate on the word at point: (string) -> string."))
 
-(cl-defmethod register-val-insert ((r =alter-word-register))
+(cl-defmethod register-val-insert ((r i/alter-word-register))
   "Call f (accessed from R)."
   (pcase-let ((`(,beg . ,end) (bounds-of-thing-at-point 'word)))
     (replace-region-contents beg end
-                             (lambda () (funcall (=alter-word-register-f r) (buffer-string))))))
+                             (lambda () (funcall (i/alter-word-register-f r) (buffer-string))))))
 
-(cl-defmethod register-val-describe ((r =alter-word-register) _verbose)
+(cl-defmethod register-val-describe ((r i/alter-word-register) _verbose)
   "Describe the function to call (from R)."
   (princ "Alter word at point: ")
-  (princ (=alter-word-register-f r)))
+  (princ (i/alter-word-register-f r)))
 
 (keymap-global-set "M-_" #'kmacro-call-macro)
 
-(=define-keymap =alter-map
+(i/define-keymap i/alter-map
   :global "C-x r a"
-  "w" #'=alter-word-at-point)
+  "w" #'i/alter-word-at-point)
 
 ;;; Custom
 
