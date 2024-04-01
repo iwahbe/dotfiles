@@ -24,7 +24,7 @@ completions_sources=(
     "rustup:rustup completions zsh"
     "cargo:rustup completions zsh cargo"
     "rg:curl \"https://raw.githubusercontent.com/BurntSushi/ripgrep/master/complete/_rg\""
-    "exa:curl \"https://raw.githubusercontent.com/ogham/exa/master/completions/zsh/_exa\""
+    "eza:curl \"https://raw.githubusercontent.com/eza-community/eza/main/completions/zsh/_eza\""
     "go:curl \"https://raw.githubusercontent.com/zsh-users/zsh-completions/master/src/_golang\""
 )
 
@@ -89,10 +89,10 @@ completions_ensure
 # With the introduction of `pulumi env`, we can make this simpler:
 alias aws-login='eval $(pulumi env open -f shell pulumi/dev-sandbox)'
 
-if exe_exists exa; then
-    alias ls='exa -Fl'
+if exe_exists eza; then
+    alias ls='eza --long --classify=always'
 else
-    alias ls='ls -Fl'
+    alias ls='ls -lF'
 fi
 
 alias cl='clear; ls'

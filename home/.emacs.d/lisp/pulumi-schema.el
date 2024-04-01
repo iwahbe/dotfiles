@@ -5,6 +5,8 @@
 ;; For an authoritative definition of Pulumi schemas, see
 ;; https://www.pulumi.com/docs/using-pulumi/pulumi-packages/schema/.
 
+;;; Code:
+
 (require 'jsonian)
 
 ;;;###autoload
@@ -30,8 +32,16 @@
 
 (cl-defmethod xref-backend-identifier-at-point ((_backend (eql 'pulumi-schema)))
   (when-let ((pos (jsonian--string-at-pos)))
-    (buffer-substring-no-properties
-     (1+ (car pos)) (1- (cdr pos)))))
+    (when (let ((p (jsonian-path)))
+            (or
+             ;; This is a top level token
+             (and (member (car p) '("resources" "types" "functions"))
+                  (length= p 2))
+             ;; A $ref in the schema
+             (and (length> p 3)
+                  (equal (car-safe (last p)) "$ref"))))
+      (buffer-substring-no-properties
+       (1+ (car pos)) (1- (cdr pos))))))
 
 (cl-defmethod xref-backend-definitions ((_backend (eql 'pulumi-schema)) identifier)
     (save-excursion
@@ -51,3 +61,5 @@ If no definition can be found, nil is returned."
     (user-error "Unable to handle a foreign schema reference"))))
 
 (provide 'pulumi-schema)
+
+;;; pulumi-schema.el ends here

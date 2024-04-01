@@ -149,33 +149,42 @@ If ENSURE is non-nil, create the file if it does not exist."
 
 ;; This is the install script straight from the elpaca repo:
 
-(defvar elpaca-installer-version 0.1)
+
+(defvar elpaca-installer-version 0.7)
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+(defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-			      :ref nil
-			      :files (:defaults (:exclude "extensions"))
-			      :build (:not elpaca--activate-package)))
-(when-let ((repo  (expand-file-name "repos/elpaca/" elpaca-directory))
-	   (build (expand-file-name "elpaca/" elpaca-builds-directory))
-	   (order (cdr elpaca-order))
-	   ((add-to-list 'load-path (if (file-exists-p build) build repo)))
-	   ((not (file-exists-p repo))))
-  (condition-case-unless-debug err
-      (if-let ((buffer (pop-to-buffer-same-window "*elpaca-installer*"))
-	       ((zerop (call-process "git" nil buffer t "clone"
-				     (plist-get order :repo) repo)))
-	       (default-directory repo)
-	       ((zerop (call-process "git" nil buffer t "checkout"
-				     (or (plist-get order :ref) "--"))))
-	       (emacs (concat invocation-directory invocation-name))
-	       ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-				     "--eval" "(byte-recompile-directory \".\" 0 'force)"))))
-	  (progn (require 'elpaca)
-		 (elpaca-generate-autoloads "elpaca" repo)
-		 (kill-buffer buffer))
-	(error "%s" (with-current-buffer buffer (buffer-string))))
-    ((error) (warn "%s" err) (delete-directory repo 'recursive))))
-(require 'elpaca-autoloads)
+                              :ref nil :depth 1
+                              :files (:defaults "elpaca-test.el" (:exclude "extensions"))
+                              :build (:not elpaca--activate-package)))
+(let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
+       (build (expand-file-name "elpaca/" elpaca-builds-directory))
+       (order (cdr elpaca-order))
+       (default-directory repo))
+  (add-to-list 'load-path (if (file-exists-p build) build repo))
+  (unless (file-exists-p repo)
+    (make-directory repo t)
+    (when (< emacs-major-version 28) (require 'subr-x))
+    (condition-case-unless-debug err
+        (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+                 ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
+                                                 ,@(when-let ((depth (plist-get order :depth)))
+                                                     (list (format "--depth=%d" depth) "--no-single-branch"))
+                                                 ,(plist-get order :repo) ,repo))))
+                 ((zerop (call-process "git" nil buffer t "checkout"
+                                       (or (plist-get order :ref) "--"))))
+                 (emacs (concat invocation-directory invocation-name))
+                 ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+                                       "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+                 ((require 'elpaca))
+                 ((elpaca-generate-autoloads "elpaca" repo)))
+            (progn (message "%s" (buffer-string)) (kill-buffer buffer))
+          (error "%s" (with-current-buffer buffer (buffer-string))))
+      ((error) (warn "%s" err) (delete-directory repo 'recursive))))
+  (unless (require 'elpaca-autoloads nil t)
+    (require 'elpaca)
+    (elpaca-generate-autoloads "elpaca" repo)
+    (load "./elpaca-autoloads")))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 
@@ -762,7 +771,10 @@ to directory DIR."
 ;; improved consulting commands. I rebind several existing built-in commands with their
 ;; =consult= equivalent.
 
-(elpaca consult
+;; Consult 1.4 has a bug that prevents C-g from working correctly (sometimes).
+;; TODO: File the bug
+
+(elpaca (consult :tag "1.3")
   (keymap-global-set "<remap> <goto-line>" #'consult-goto-line)
   (keymap-global-set "<remap> <Info-search>" #'consult-info)
   (keymap-global-set "<remap> <yank-pop>" #'consult-yank-pop)
@@ -1844,6 +1856,19 @@ c the register to save to:")
 (i/define-keymap i/alter-map
   :global "C-x r a"
   "w" #'i/alter-word-at-point)
+
+;;; Fixup init from seq already being loaded.
+
+;; https://github.com/progfolio/elpaca/issues/216#issuecomment-1868747372
+(defun i/elpaca-unload-seq (e)
+  "Unload seq before continuing the elpaca build, then continue to build the recipe E."
+  (and (featurep 'seq) (unload-feature 'seq t))
+  (elpaca--continue-build e))
+
+(elpaca `(seq :build ,(append (butlast (if (file-exists-p (expand-file-name "seq" elpaca-builds-directory))
+                                          elpaca--pre-built-steps
+                                        elpaca-build-steps))
+                             (list 'i/elpaca-unload-seq 'elpaca--activate-package))))
 
 ;;; Custom
 
