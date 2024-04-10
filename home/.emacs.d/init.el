@@ -1707,6 +1707,11 @@ The opening \" should be after START and the closing \" should be before END."
 
 
 
+;;; Lisp
+
+(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+(require 'recase)
+
 ;;; Pulumi
 
 ;; I currently work for https://www.pulumi.com, and I define a set of special functions to
