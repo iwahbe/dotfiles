@@ -10,6 +10,14 @@
 ;; when a file is loaded, but it does effect what happens when =eval-last-sexp= is used.
 (setq-default lexical-binding t)
 
+;; Set the custom file as soon as possible, to prevent emacs from writing to this file.
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+
+;; We do not load the custom file, since we want all customizations to occur here.
+;;
+;;    (when (file-exists-p custom-file) (load custom-file))
+
+
 ;; Add some helpers to the load path.
 ;;
 ;; We don't add immediately because it has a noticeable performance impact on load init
@@ -413,6 +421,19 @@ This is calculated once so it doesn't change during redisplay")
 (add-hook 'after-save-hook
           'executable-make-buffer-file-executable-if-script-p)
 
+(defun i/elint-check-file (&optional file)
+  "Byte compile FILE for errors compiler errors and warnings only."
+  (interactive)
+  (let* ((dst (make-temp-file "elint-file"))
+         (byte-compile-dest-file-function (lambda (_) dst))
+         (byte-compile-log-buffer (generate-new-buffer "*Compile-Log*")))
+    (byte-compile-file (or file (buffer-file-name)))
+    (delete-file dst)
+    (message "Checked")))
+
+(with-eval-after-load 'byte-compile
+  (define-key emacs-lisp-compilation-mode-map "q" #'kill-current-buffer))
+
 
 
 ;;; Themes
@@ -515,7 +536,6 @@ functions are run."
                               (make-process :name "1Password Init"
                                             :buffer "1Password"
                                             :command `(,op "inject" "--in-file" ,tmp)
-                                            :connecton-type 'pipe
                                             :sentinel #'i/1Password--sentinel))
           (set (make-local-variable 'i/1Password-template-file) tmp)))
     (warn "Could not find 1Password CLI")))
@@ -630,7 +650,7 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 (custom-set-variables
  ;; Move auto-save files (#foo#) and backup files (foo~) into the cache.
- '(auto-save-file-name-transforms `((".*" ,(concat (i/cache-subdirectory "autosaves" t) "\\1") t)))
+ '(auto-save-file-name-transforms `((".*" ,(i/cache-subdirectory "auto-save/") t)))
  '(backup-directory-alist `(("." . ,(i/cache-subdirectory "backup")))))
 
 
@@ -771,10 +791,7 @@ to directory DIR."
 ;; improved consulting commands. I rebind several existing built-in commands with their
 ;; =consult= equivalent.
 
-;; Consult 1.4 has a bug that prevents C-g from working correctly (sometimes).
-;; TODO: File the bug
-
-(elpaca (consult :tag "1.3")
+(elpaca consult
   (keymap-global-set "<remap> <goto-line>" #'consult-goto-line)
   (keymap-global-set "<remap> <Info-search>" #'consult-info)
   (keymap-global-set "<remap> <yank-pop>" #'consult-yank-pop)
@@ -906,10 +923,11 @@ to directory DIR."
 ;; Performance optimizations for eglot
 ;;
 ;; Borrowed from https://github.com/joaotavora/eglot/discussions/993.
-(setq eglot-events-buffer-size 0
-      eglot-ignored-server-capabilities '(:hoverProvider
-                                          :documentHighlightProvider)
-      eglot-autoshutdown t)
+(with-eval-after-load 'eglot
+  (setq eglot-events-buffer-config '(:size 0 :format 'lisp)
+        eglot-ignored-server-capabilities '(:hoverProvider
+                                            :documentHighlightProvider)
+        eglot-autoshutdown t))
 
 (i/define-keymap i/lsp-map
   "Common functions for LSP."
@@ -1035,10 +1053,12 @@ This is useful when finding the place where a line diverges in a diff."
          (point (point))
          (max-point (line-end-position))
          (compare-point (save-excursion
-                          (next-line)
-                          (if (eq starting-column (current-column))
-                              (point)
-                            (user-error "There is no equivalent character on the line below"))))
+                          (forward-line)
+                          (let ((lineno (line-number-at-pos)))
+                            (goto-char (+ (point) starting-column))
+                            (unless (eq lineno (line-number-at-pos))
+                              (user-error "There is no equivalent character on the line below"))
+                            (point))))
          (max-compare-point (save-excursion
                               (goto-char compare-point)
                               (line-end-position))))
@@ -1054,12 +1074,11 @@ This is useful when finding the place where a line diverges in a diff."
 (defun i/gh-token ()
   "The current GitHub token, as provided by gh."
   (when-let (executable-find "gh")
-    (setq i/gh--token
-          (with-temp-buffer
-            (shell-command "gh auth token" (current-buffer))
-            (string-trim
-             (buffer-substring-no-properties
-              (point-min) (point-max)))))))
+    (with-temp-buffer
+      (shell-command "gh auth token" (current-buffer))
+      (string-trim
+       (buffer-substring-no-properties
+        (point-min) (point-max))))))
 
 (defun auth-source-backends-parser-elisp (entry)
   "Parse ENTRY as a elisp auth source."
@@ -1260,18 +1279,19 @@ DESCRIPTION is the existing description."
 
 ;; `org-mode' is primarily used for reading, so it's worth making it look as nice as
 ;; possible
-(setq
- ;; Hide markup text such as =*=, =/= and ===.
- org-hide-emphasis-markers t
+(with-eval-after-load 'org
+  (setq
+   ;; Hide markup text such as =*=, =/= and ===.
+   org-hide-emphasis-markers t
 
- ;; Similarly, we can render pretty equations like =(\alpha - \beta) \div \Omega=.
- org-pretty-entities t
+   ;; Similarly, we can render pretty equations like =(\alpha - \beta) \div \Omega=.
+   org-pretty-entities t
 
- ;; We would prefer that org renders headings as =✿ Foo= then =***✿ Foo=.
- org-hide-leading-stars t)
+   ;; We would prefer that org renders headings as =✿ Foo= then =***✿ Foo=.
+   org-hide-leading-stars t))
 
 ;; I replace stand org bullets with graphical overlays.
-(elpaca org-bullets (i/add-hook org-mode-hook #'org-bullets-mode))
+(elpaca org-superstar (i/add-hook org-mode-hook #'org-superstar-mode))
 
 ;; I would prefer that org is read with variable width text, but I need source blocks and
 ;; tables to be rendered with fixed width text. This can be accomplished by overriding org
@@ -1310,6 +1330,8 @@ DESCRIPTION is the existing description."
 ;; I can now safely enable variable pitch mode.
 (i/add-hook org-mode-hook #'variable-pitch-mode)
 
+(with-eval-after-load 'org
+  (add-to-list 'org-export-backends 'md))
 
 ;; `org-mode' defines a "TODO" item as any header that begins with a todo keyword.  The
 ;; keywords are defines as so:
@@ -1326,15 +1348,19 @@ DESCRIPTION is the existing description."
 ;; Set how `org-refile' works.
 (setq org-refile-use-outline-path t
       org-outline-path-complete-in-steps nil
-      org-refile-targets '((nil :maxlevel . 3) ; The current file
-                           (org-agenda-files :maxlevel . 2)))
+      org-refile-targets `((nil :maxlevel . 3) ; The current file
+                           (org-agenda-files :maxlevel . 2)
+                           (,(expand-file-name "archive.org" org-directory) :maxlevel . 1)))
 
 ;; `org-agenda' is a component of `org-mode' that displays "TODO" elements as part of a
 ;; time view.
 
 ;; I scatter "TODO" elements all over my org files, so I need to tell `org-mode' which
 ;; directories it should search through.
-(setq org-agenda-files (list org-directory))
+(with-eval-after-load 'org-agenda
+  (setq org-agenda-files (list org-directory (expand-file-name "pulumi" org-directory)))
+  (org-remove-file (expand-file-name "archive.org" org-directory))
+  (setq org-agenda-tags-column 0))
 
 ;; I generally use it to discover what I need to do this week, so I tell it to work in
 ;; increments of a week.
@@ -1397,6 +1423,7 @@ DESCRIPTION is the existing description."
         ;; Here `${type}' is referencing the `org-roam-node-type'.
         (concat "${type:15} ${title:*} " (propertize "${tags:10}" 'face 'org-tag))))
 
+(autoload #'org-roam-buffer-toggle "org-roam" nil t)
 (i/define-keymap i/org-roam-leader-map
   "Org specific keybindings for `org-roam'.
 
@@ -1408,9 +1435,6 @@ Unlike `i/org-global-map', these keys are only accessible in an
   "i" #'org-roam-node-insert ; This only makes sense where the links are rendered
                                         ; correctly (`org-mode')
   "b" #'org-roam-buffer-toggle)
-
-(with-eval-after-load 'org-mode
-  (keymap-set org-mode-map "C-l M-l" #'i/org-describe-link))
 
 ;; Emacs has `sh-mode', but no `zsh-mode'. Unfortunately, `org-mode' expects a mode called
 ;; `zsh-mode' when activating `org-edit-special'. Since the built-in `zsh-mode' can handle
@@ -1702,7 +1726,7 @@ The opening \" should be after START and the closing \" should be before END."
 ;; https://github.com/iwahbe/chat.el. This provides basic functionality to interact with
 ;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
 (elpaca (chat.el :host github :repo "iwahbe/chat.el")
-  (setq chat-model "gpt-4-1106-preview")
+  (setq chat-model "gpt-4o")
   (i/1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key))
 
 
@@ -1816,7 +1840,7 @@ DEPTH specifies how many levels to search through."
   "Attempt to set the variable `exec-path' from $SHELL's $PATH."
   (let* ((b (get-buffer-create "discover-exec-path" t))
          (p (start-process "discover-exec-path" b shell-file-name shell-command-switch "echo $PATH")))
-    (set-process-sentinel p (lambda (process event)
+    (set-process-sentinel p (lambda (_ event)
                               (when (equal event "finished\n")
                                 ;; If we have discovered a path, set it.
                                 (if-let ((found (string-split
@@ -1874,18 +1898,6 @@ c the register to save to:")
                                           elpaca--pre-built-steps
                                         elpaca-build-steps))
                              (list 'i/elpaca-unload-seq 'elpaca--activate-package))))
-
-;;; Custom
-
-;; In general, we want all customizations to occur in init.el. Since there is no obvious
-;; way to non-destructively disable `custom', we set it to use an external file:
-;; custom.el.
-(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-
-;; Customizations aren't loaded by default, so we also need to instruct Emacs to load
-;; custom.el if it exists.
-(when (file-exists-p custom-file)
-  (load custom-file))
 
 
 
