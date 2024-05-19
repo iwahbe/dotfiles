@@ -235,7 +235,7 @@ WINDOW is passed via `window-size-change-functions'.  It is ignored."
       ;; onto a file, so we should just display that file.
       (current-buffer)
     (with-current-buffer (get-buffer-create "*Splash Screen*")
-      (read-only-mode)
+      (special-mode)
       (make-local-variable 'window-size-change-functions)
       (add-to-list 'window-size-change-functions #'i/splash-buffer)
       (let ((inhibit-read-only t))
@@ -612,7 +612,7 @@ ARGS allows this function to be used in hooks.  ARGS is ignored."
 
 
 (elpaca which-key
-  (setq which-key-idle-secondary-delay 0.0000)
+  (setq which-key-idle-secondary-delay 0.0)
   (which-key-mode))
 
 
@@ -729,11 +729,9 @@ to directory DIR."
   ;; I want completion to be enabled everywhere.
   ;;
   ;; However, this doesn't work when on a terminal.
-  (when (display-graphic-p)
-    (global-corfu-mode))
+  (global-corfu-mode)
 
   (with-eval-after-load 'corfu
-
     ;; Finally, I want completion to not interfere with my normal typing. By default, return
     ;; finalizes a completion. I find this super disruptive, since I often want to type RET,
     ;; even when a completion is prompted. The solution is to unbind RET and rebind a less
@@ -1336,11 +1334,11 @@ DESCRIPTION is the existing description."
 ;; `org-mode' defines a "TODO" item as any header that begins with a todo keyword.  The
 ;; keywords are defines as so:
 (setq org-todo-keywords
-      '((sequence "TODO(t)" "WAIT(w)" "DONE(d)")
+      '((sequence "TODO(t)" "WAIT(w)" "|" "DONE(d)" "KILL(k)")
 	(type "PROJ(p)")
-	(type "KILL(k)")
 	(type "LOOP(l)")
-        (type "MEETING(m)")))
+        (type "MEETING(m)")
+        (type "IDEA(i)")))
 
 ;; I want to leave a small note every time a "TODO" changes state.
 (setq org-log-done 'note)
@@ -1355,12 +1353,16 @@ DESCRIPTION is the existing description."
 ;; `org-agenda' is a component of `org-mode' that displays "TODO" elements as part of a
 ;; time view.
 
-;; I scatter "TODO" elements all over my org files, so I need to tell `org-mode' which
+;; I scatter "TO DO" elements all over my org files, so I need to tell `org-mode' which
 ;; directories it should search through.
 (with-eval-after-load 'org-agenda
-  (setq org-agenda-files (list org-directory (expand-file-name "pulumi" org-directory)))
-  (org-remove-file (expand-file-name "archive.org" org-directory))
-  (setq org-agenda-tags-column 0))
+  (setq
+   org-agenda-files (list org-directory (expand-file-name "pulumi" org-directory))
+   org-agenda-window-setup 'current-window
+   org-agenda-prefix-format '((agenda . "  %i%?-12t% s")
+                              (todo . " %i %?-12t")
+                              (tags . " %i %?-12t")
+                              (search . " %i %-12:c %?-12t"))))
 
 ;; I generally use it to discover what I need to do this week, so I tell it to work in
 ;; increments of a week.
@@ -1392,10 +1394,9 @@ DESCRIPTION is the existing description."
 
 (autoload #'i/org-capture-article (expand-file-name "templates.el" org-directory) nil t)
 (with-eval-after-load 'org
-  (with-eval-after-load 'org-roam
-    (let ((f (expand-file-name "templates.el" org-directory)))
-      (when (file-exists-p f)
-        (load-file f)))))
+  (let ((f (expand-file-name "templates.el" org-directory)))
+    (when (file-exists-p f)
+      (load-file f))))
 
 (i/define-keymap i/org-global-map
   "My globally accessible org map."
@@ -1404,6 +1405,7 @@ DESCRIPTION is the existing description."
   "r" #'org-roam-capture
   "c" #'org-capture
   "d" #'org-roam-dailies-goto-today
+  "a" (lambda () (interactive) (org-agenda nil "n"))
   "b" (lambda ()
         (interactive)
         (find-file i/org-default-bibliography)))
@@ -1850,7 +1852,8 @@ DEPTH specifies how many levels to search through."
                                   (message "Failed to discover exec-path"))
                                 ;; Regardless of if we have discovered a path, kill the
                                 ;; buffer. We won't get another chance here.
-                                (kill-buffer b))))))
+                                (kill-buffer b))))
+    (set-process-query-on-exit-flag p nil)))
 
 (i/set-exec-path-from-shell)
 
