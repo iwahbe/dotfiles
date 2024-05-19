@@ -726,9 +726,6 @@ to directory DIR."
         corfu-auto-delay 0    ;; Without any delay
         corfu-auto-prefix 1)  ;; Wait only for the first character
 
-  ;; I want completion to be enabled everywhere.
-  ;;
-  ;; However, this doesn't work when on a terminal.
   (global-corfu-mode)
 
   (with-eval-after-load 'corfu
