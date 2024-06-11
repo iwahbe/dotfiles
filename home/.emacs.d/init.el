@@ -1356,14 +1356,11 @@ DESCRIPTION is the existing description."
   (setq
    org-agenda-files (list org-directory (expand-file-name "pulumi" org-directory))
    org-agenda-window-setup 'current-window
-   org-agenda-prefix-format '((agenda . "  %i%?-12t% s")
-                              (todo . " %i %?-12t")
-                              (tags . " %i %?-12t")
-                              (search . " %i %-12:c %?-12t"))))
 
-;; I generally use it to discover what I need to do this week, so I tell it to work in
-;; increments of a week.
-(setq org-agenda-span 'week)
+   ;; I generally use it to discover what I need to do this week, so I tell it to work in
+   ;; increments of a week.
+   org-agenda-span 'week)
+  (add-hook 'org-agenda-after-show-hook #'org-narrow-to-subtree))
 
 ;; Org allows embedded source blocks, framed by "#+BEGIN_SRC" and "#+END_SRC".
 ;;
