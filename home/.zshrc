@@ -87,7 +87,7 @@ completions_ensure
 #     alias aws-login='aws sso login --profile=dev-sandbox && eval $(aws-sso-creds export -p dev-sandbox)'
 #
 # With the introduction of `pulumi env`, we can make this simpler:
-alias aws-login='eval $(pulumi env open -f shell pulumi/dev-sandbox)'
+alias aws-login='eval $(pulumi env open -f shell pulumi/providers.aws)'
 
 if exe_exists eza; then
     alias ls='eza --long --classify=always'

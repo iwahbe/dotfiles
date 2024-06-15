@@ -872,6 +872,7 @@ to directory DIR."
         (json       . ("https://github.com/tree-sitter/tree-sitter-json"       "master" "src"))
         (python     . ("https://github.com/tree-sitter/tree-sitter-python"     "master" "src"))
         (elixir     . ("https://github.com/elixir-lang/tree-sitter-elixir"     "main"   "src"))
+        (go         . ("https://github.com/tree-sitter/tree-sitter-go"         "master" "src"))
         (heex       . ("https://github.com/phoenixframework/tree-sitter-heex"  "main"   "src"))))
 
 ;; By default, treesit installs grammars in (expand-file-name "tree-sitter"
@@ -1029,7 +1030,8 @@ ARG is passed directly to `magit-patch-save'."
 (elpaca magit
   (with-eval-after-load 'magit
     (setq magit-display-buffer-function
-          #'magit-display-buffer-same-window-except-diff-v1))
+          #'magit-display-buffer-same-window-except-diff-v1
+          magit-show-long-lines-warning nil))
 
   (with-eval-after-load 'magit-patch
     (require 'magit-patch)
@@ -1609,6 +1611,9 @@ The opening \" should be after START and the closing \" should be before END."
               (_ (forward-char))))))
       (delete-char 1)
       (insert-char ?`))))
+
+(elpaca (testrun :host github :repo "t0yv0/testrun.el"
+                 :remotes ("iwahbe" :repo "iwahbe/testrun.el")))
 
 
 
