@@ -1630,7 +1630,8 @@ The opening \" should be after START and the closing \" should be before END."
   ;; but it was recommended by `markdown-mode's website.
   (autoload 'gfm-mode "markdown-mode"
     "Major mode for GitHub Flavored Markdown files" t)
-  (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode)))
+  (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode))
+  (setq-default markdown-hide-urls t))
 
 
 
@@ -1728,7 +1729,8 @@ The opening \" should be after START and the closing \" should be before END."
 ;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
 (elpaca (chat.el :host github :repo "iwahbe/chat.el")
   (setq chat-model "gpt-4o")
-  (i/1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key))
+  (i/1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key)
+  (keymap-global-set "C-c c" #'chat-query-dwim))
 
 
 
