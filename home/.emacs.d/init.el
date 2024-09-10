@@ -342,6 +342,9 @@ This is calculated once so it doesn't change during redisplay")
 
 ;;; Miscellaneous Customizations
 
+(add-to-list 'warning-suppress-types
+             '(undo discard-info)) ;; Don't warn when a large change is made to a buffer
+
 ;; Automatically keep buffers up to date with the underlying file:
 (auto-revert-mode +1)
 
@@ -1355,8 +1358,12 @@ DESCRIPTION is the existing description."
 ;; I scatter "TO DO" elements all over my org files, so I need to tell `org-mode' which
 ;; directories it should search through.
 (with-eval-after-load 'org-agenda
+  (require 'org-roam)
   (setq
-   org-agenda-files (list org-directory (expand-file-name "pulumi" org-directory))
+   org-agenda-files (list
+                     org-directory
+                     (expand-file-name "pulumi" org-directory)
+                     (expand-file-name "daily" org-roam-directory))
    org-agenda-window-setup 'current-window
 
    ;; I generally use it to discover what I need to do this week, so I tell it to work in
@@ -1631,7 +1638,8 @@ The opening \" should be after START and the closing \" should be before END."
   (autoload 'gfm-mode "markdown-mode"
     "Major mode for GitHub Flavored Markdown files" t)
   (add-to-list 'auto-mode-alist '("README\\.md\\'" . gfm-mode))
-  (setq-default markdown-hide-urls t))
+  (setq-default markdown-hide-urls t
+                markdown-ordered-list-enumeration nil))
 
 
 

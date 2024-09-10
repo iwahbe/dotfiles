@@ -12,3 +12,9 @@ email = USER_EMAIL
 	enabled = true
 [core]
 	excludesfile = ~/.global_gitignore
+[credential "https://github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
