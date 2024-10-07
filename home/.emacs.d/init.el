@@ -828,6 +828,23 @@ to directory DIR."
 (unless module-file-suffix
   (error "TODO: Support spellcheck without dynamic modules"))
 
+;;; `abbrev-mode`
+
+(defun i/abbrev-add-local (arg)
+  "Define a buffer-local abbrev whose expansion is last word before point.
+If there's an active region, use that as the expansion.
+
+Prefix argument ARG says how many words before point to use for the expansion;
+zero means the entire region is the expansion.
+
+A negative ARG means to undefine the specified abbrev.
+
+This command reads the abbreviation from the minibuffer."
+  (interactive "P")
+  (add-abbrev local-abbrev-table "Local" arg))
+
+(keymap-set abbrev-map "l" #'i/abbrev-add-local)
+
 
 
 ;;; Major Modes: `text-mode'
@@ -838,7 +855,7 @@ to directory DIR."
 ;; `text-mode'. This applies for all derived modes as well.
 
 (i/add-hook 'text-mode-hook
-  #'visual-line-mode)
+  #'visual-line-mode #'abbrev-mode)
 
 
 

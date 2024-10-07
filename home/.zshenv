@@ -38,8 +38,16 @@ fi
 if exe_exists dotnet; then
    add_to_path "$HOME/.dotnet/tools"
 fi
-export EDITOR='emacs -nw'
 
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+if exe_exists emacs; then
+    export EDITOR='emacs -nw'
+fi
+
+if exe_exists pulumi; then
+    export PULUMI_SUPPRESS_COPILOT_LINK=true
+fi
+
+if exe_exists bun; then
+    export BUN_INSTALL="$HOME/.bun"
+    export PATH="$BUN_INSTALL/bin:$PATH"
+fi
