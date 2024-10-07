@@ -196,6 +196,30 @@ If ENSURE is non-nil, create the file if it does not exist."
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 
+
+;;; Fixup init from seq already being loaded.
+
+;; https://github.com/progfolio/elpaca/issues/216#issuecomment-1868747372
+(defun i/elpaca-unload-seq (e)
+  "Unload seq before continuing the elpaca build, then continue to build the recipe E."
+  (and (featurep 'seq) (unload-feature 'seq t))
+  (elpaca--continue-build e))
+
+(defun i/elpaca-unload-transient (e)
+  "Unload seq before continuing the elpaca build, then continue to build the recipe E."
+  (and (featurep 'transient) (unload-feature 'transient t))
+  (elpaca--continue-build e))
+
+(elpaca `(seq :build ,(append (butlast (if (file-exists-p (expand-file-name "seq" elpaca-builds-directory))
+                                          elpaca--pre-built-steps
+                                        elpaca-build-steps))
+                              (list 'i/elpaca-unload-seq 'elpaca--activate-package))))
+
+(elpaca `(transient :build ,(append (butlast (if (file-exists-p (expand-file-name "transient" elpaca-builds-directory))
+                                          elpaca--pre-built-steps
+                                        elpaca-build-steps))
+                             (list 'i/elpaca-unload-transient 'elpaca--activate-package))))
+
 ;; We redefine `display-startup-echo-area-message', since there is no built in way to
 ;; disable it. To make sure I am cognizant of start-up time, I have this set to display
 ;; the load time of Emacs.
@@ -1874,7 +1898,12 @@ DEPTH specifies how many levels to search through."
                                 (if-let ((found (string-split
                                                  (with-current-buffer b (buffer-string))
                                                  ":" t "\n")))
-                                    (setq exec-path (append found (list exec-directory)))
+                                    (progn
+                                      (setq exec-path (append found (list exec-directory)))
+                                      ;; Now that we have discovered `$PATH' from the
+                                      ;; shell, propagate it back to Emacs's PATH for
+                                      ;; subsidiary processes (like LSP servers) to use.
+                                      (setenv "PATH" (string-join exec-path ":")))
                                   (message "Failed to discover exec-path"))
                                 ;; Regardless of if we have discovered a path, kill the
                                 ;; buffer. We won't get another chance here.
@@ -1914,19 +1943,6 @@ c the register to save to:")
 (i/define-keymap i/alter-map
   :global "C-x r a"
   "w" #'i/alter-word-at-point)
-
-;;; Fixup init from seq already being loaded.
-
-;; https://github.com/progfolio/elpaca/issues/216#issuecomment-1868747372
-(defun i/elpaca-unload-seq (e)
-  "Unload seq before continuing the elpaca build, then continue to build the recipe E."
-  (and (featurep 'seq) (unload-feature 'seq t))
-  (elpaca--continue-build e))
-
-(elpaca `(seq :build ,(append (butlast (if (file-exists-p (expand-file-name "seq" elpaca-builds-directory))
-                                          elpaca--pre-built-steps
-                                        elpaca-build-steps))
-                             (list 'i/elpaca-unload-seq 'elpaca--activate-package))))
 
 
 
