@@ -33,7 +33,7 @@
  frame-resize-pixelwise t
  ;; We set the font here to work around a bug that hides the echo area
  ;; when a font is set after the frame loads.
- default-frame-alist '((font . "USER_FONT")
+ default-frame-alist '((font . "Iosevka SS01")
 		       (vertical-scroll-bars . nil)
 		       (horizontal-scroll-bars . nil))
  initial-frame-alist

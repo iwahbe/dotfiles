@@ -1341,8 +1341,8 @@ DESCRIPTION is the existing description."
 ;; This solution was inspired by https://zzamboni.org/post/beautifying-org-mode-in-emacs/.
 (custom-theme-set-faces
  'user
- '(variable-pitch ((t (:family "Helvetica"))))
- '(fixed-pitch ((t ( :family "USER_FONT"))))
+ '(variable-pitch ((t (:family "Iosevka Aile"))))
+ '(fixed-pitch ((t ( :family "Iosevka SS01"))))
  '(org-block ((t (:inherit fixed-pitch))))
  '(org-code ((t (:inherit (shadow fixed-pitch)))))
  '(org-document-info ((t (:foreground "dark orange"))))

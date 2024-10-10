@@ -1,7 +1,7 @@
 # This is Git's per-user configuration file.
 [user]
-name = USER_NAME
-email = USER_EMAIL
+name = Ian Wahbe
+email = me@iwahbe.com
 [github]
 	user = iwahbe
 [init]

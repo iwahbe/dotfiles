@@ -3,19 +3,19 @@ blinking = "Off"
 shape = "Beam"
 
 [font.bold]
-family = "USER_FONT"
+family = "Iosevka Term SS01"
 style = "Bold"
 
 [font.bold_italic]
-family = "USER_FONT"
+family = "Iosevka Term SS01"
 style = "Bold Italic"
 
 [font.italic]
-family = "USER_FONT"
+family = "Iosevka Term SS01"
 style = "Italic"
 
 [font.normal]
-family = "USER_FONT"
+family = "Iosevka Term SS01"
 style = "Regular"
 
 [window]
