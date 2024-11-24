@@ -17,12 +17,18 @@ export USER_PATH
 if [[ -d "/usr/local/bin" ]]; then
    add_to_path "/usr/local/bin"
 fi
+
 if [[ -d "/opt/homebrew/bin" ]]; then
    add_to_path "/opt/homebrew/bin"
    alias brew="/opt/homebrew/bin/brew"
 fi
+
 if [[ -d "/usr/local/Homebrew/bin" ]]; then
    alias oldbrew="/usr/local/Homebrew/bin/brew"
+fi
+
+if [[ -d "$HOME/.local/bin" ]]; then
+    add_to_path "$HOME/.local/bin"
 fi
 
 if [[ -f "$HOME/.cargo/env" ]]; then

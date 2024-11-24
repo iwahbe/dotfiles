@@ -1082,6 +1082,8 @@ ARG is passed directly to `magit-patch-save'."
     (transient-append-suffix 'magit-patch "r"
       '("y" "Yank diff as patch" i/magit-patch-yank))))
 
+(elpaca git-modes)
+
 (defun i/find-next-divergent-column ()
   "Move to the next column where the current line diverges from the next line.
 
@@ -1289,6 +1291,14 @@ This function performs the fixup in place."
     (if-let (gh (executable-find "gh"))
         (call-process gh nil nil nil "issue" "view" "--web" "--repo" (car parts) (cdr parts))
       (user-error "Could not find \"gh\" executable"))))
+
+(with-eval-after-load 'ol
+  (add-to-list 'org-link-abbrev-alist (cons "gh" #'org-gh-export)))
+
+(defun org-gh-export (link)
+  "Export the (LINK . DESC) pair according to BACKEND."
+  (let ((p (org-gh--parse link)))
+    (format "https://www.github.com/%s/issues/%s" (car p) (cdr p))))
 
 (defun org-gh-insert-description (link description)
   "Find the name of a GH issue for display purposes.
