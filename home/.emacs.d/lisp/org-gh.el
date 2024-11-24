@@ -5,12 +5,23 @@
 ;;; Code:
 
 (require 'ol)
+(eval-when-compile (require 'subr-x))
 
-(org-link-set-parameters "gh"
-                         :follow #'org-gh--follow
-                         :insert-description #'org-gh-insert-description)
-
-(add-to-list 'org-link-abbrev-alist (cons "gh" #'org-gh--expand))
+(org-link-set-parameters
+ "gh"
+ :follow #'org-gh--follow
+ :insert-description #'org-gh-insert-description
+ :export (lambda (link desc backend info)
+           ;; Both `ox' and `org-element-ast' must have been invoked for the exporter to
+           ;; run.
+           (eval-when-compile (require 'ox) (require 'org-element-ast))
+           (if-let ((transcoder (alist-get 'link (org-export-backend-transcoders
+                                                  (org-export-get-backend backend)))))
+               (let ((link (org-element-create
+                            'link (list :type "https"
+	                                :path (org-gh--expand link)))))
+                 (funcall transcoder link desc info))
+             (concat "gh:" link))))
 
 ;; gh:org/repo#num is much cleaner then https://github.com/org/repo/issues/num, but the
 ;; internet tends to provide links in the less clean form.
@@ -51,22 +62,16 @@ This function performs the fixup in place."
   "Parse a gh: LINK of the form gh:org/repo#issue into (org/repo . issue)."
   (let ((parts (string-split (string-remove-prefix "gh:" link) "#" t)))
     (unless (length= parts 2)
-      (error "Link had the wrong length: %s" link))
-    (cons (car parts) (cadr parts))))
+      (error "Invalid gh: link: %s" link))
+    parts))
 
 (defun org-gh--expand (link)
-  "Expand LINK to the full HTTPS link.
-
-For use in `org-link-abbrev-alist'."
-  (let ((p (org-gh--parse link)))
-    (format "https://www.github.com/%s/issues/%s" (car p) (cdr p))))
+  "Expand LINK to the full HTTPS link."
+  (apply #'format "https://www.github.com/%s/issues/%s" (org-gh--parse link)))
 
 (defun org-gh--follow (link _)
   "Open a `gh' based LINK of the format gh:org/repo#number."
-  (let ((parts (org-gh--parse link)))
-    (if-let (gh (executable-find "gh"))
-        (call-process gh nil nil nil "issue" "view" "--web" "--repo" (car parts) (cdr parts))
-      (user-error "Could not find \"gh\" executable"))))
+  (org-link-open-from-string (org-gh--expand link)))
 
 (defun org-gh-insert-description (link description)
   "Find the name of a GH issue for display purposes.
@@ -78,7 +83,7 @@ DESCRIPTION is the existing description."
         (with-temp-buffer
 	  (unless (equal 0
                          (call-process gh nil t nil
-			               "issue" "view" (cdr parts)
+			               "issue" "view" (cadr parts)
 			               "--repo" (car parts)
 			               "--json" "title"))
 	    (user-error "Failed to get title from GH: %s"
@@ -86,7 +91,7 @@ DESCRIPTION is the existing description."
                                (buffer-string))))
 	  (goto-char (point-min))
           (format "%s#%s: %s"
-                  (car parts) (cdr parts)
+                  (car parts) (cadr parts)
                   (alist-get 'title (json-parse-buffer :object-type 'alist)))))))
 
 (provide 'org-gh)
