@@ -7,21 +7,10 @@
 (require 'ol)
 (eval-when-compile (require 'subr-x))
 
-(org-link-set-parameters
- "gh"
- :follow #'org-gh--follow
- :insert-description #'org-gh-insert-description
- :export (lambda (link desc backend info)
-           ;; Both `ox' and `org-element-ast' must have been invoked for the exporter to
-           ;; run.
-           (eval-when-compile (require 'ox) (require 'org-element-ast))
-           (if-let ((transcoder (alist-get 'link (org-export-backend-transcoders
-                                                  (org-export-get-backend backend)))))
-               (let ((link (org-element-create
-                            'link (list :type "https"
-	                                :path (org-gh--expand link)))))
-                 (funcall transcoder link desc info))
-             (concat "gh:" link))))
+(org-link-set-parameters "gh"
+                         :follow #'org-gh--follow
+                         :insert-description #'org-gh--insert-description
+                         :export #'org-gh--export)
 
 ;; gh:org/repo#num is much cleaner then https://github.com/org/repo/issues/num, but the
 ;; internet tends to provide links in the less clean form.
@@ -73,26 +62,43 @@ This function performs the fixup in place."
   "Open a `gh' based LINK of the format gh:org/repo#number."
   (org-link-open-from-string (org-gh--expand link)))
 
-(defun org-gh-insert-description (link description)
+(defun org-gh--export (link desc backend info)
+  "Export an gh: type (LINK DESC) by invoking the BACKEND's link transcoder.
+
+INFO is passed to the transcoder."
+  ;; Both `ox' and `org-element-ast' must have been invoked for the exporter to
+  ;; run.
+  (eval-when-compile (require 'ox) (require 'org-element-ast))
+  (if-let ((transcoder (alist-get 'link (org-export-backend-transcoders
+                                         (org-export-get-backend backend)))))
+      (let ((link (org-element-create
+                   'link (list :type "https"
+	                       :path (org-gh--expand link)))))
+        (funcall transcoder link desc info))
+    (concat "gh:" link)))
+
+(defun org-gh--insert-description (link description)
   "Find the name of a GH issue for display purposes.
 LINK is a gh link of the form org/repo#number.
 DESCRIPTION is the existing description."
   (or description
-      (when-let ((parts (org-gh--parse link))
-                 (gh (executable-find "gh")))
-        (with-temp-buffer
-	  (unless (equal 0
-                         (call-process gh nil t nil
-			               "issue" "view" (cadr parts)
-			               "--repo" (car parts)
-			               "--json" "title"))
-	    (user-error "Failed to get title from GH: %s"
-                        (progn (goto-char (point-min))
-                               (buffer-string))))
-	  (goto-char (point-min))
-          (format "%s#%s: %s"
-                  (car parts) (cadr parts)
-                  (alist-get 'title (json-parse-buffer :object-type 'alist)))))))
+      (when-let ((title (apply #'org-gh--get-issue-title (org-gh--parse link))))
+       (format "%s: %s" (string-remove-prefix "gh:" link) title))))
+
+(defun org-gh--get-issue-title (repo issue)
+  "Get the title associated with the (REPO . ISSUE) pair."
+  (when-let ((gh (executable-find "gh")))
+    (with-temp-buffer
+      (unless (equal 0 (call-process
+                        gh nil t nil
+                        "issue" "view" issue
+                        "--repo" repo
+                        "--json" "title"))
+        (user-error "Failed to get title from GH: %s"
+                    (progn (goto-char (point-min))
+                           (buffer-string))))
+      (goto-char (point-min))
+      (alist-get 'title (json-parse-buffer :object-type 'alist)))))
 
 (provide 'org-gh)
 
