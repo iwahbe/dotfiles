@@ -825,7 +825,10 @@ to directory DIR."
   (keymap-global-set "<remap> <switch-to-buffer>" #'consult-buffer)
   (keymap-global-set "<remap> <switch-to-buffer-other-frame>" #'consult-buffer-other-frame)
   (keymap-global-set "<remap> <switch-to-buffer-other-window>" #'consult-buffer-other-window)
-  (keymap-set isearch-mode-map "<remap> <isearch-edit-string>" #'consult-isearch-history))
+  (keymap-set isearch-mode-map "<remap> <isearch-edit-string>" #'consult-isearch-history)
+
+  (with-eval-after-load 'consult
+    (setq consult-ripgrep-args (concat consult-ripgrep-args " --hidden"))))
 
 
 
@@ -1328,6 +1331,7 @@ Operate on the region defined by START to END."
 ;; directories it should search through.
 (with-eval-after-load 'org-agenda
   (require 'org-roam)
+  (keymap-set org-agenda-mode-map "s" #'org-tags-view)
   (setq
    org-agenda-files (list
                      org-directory
