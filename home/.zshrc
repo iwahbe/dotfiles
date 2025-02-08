@@ -26,6 +26,7 @@ completions_sources=(
     "rg:curl \"https://raw.githubusercontent.com/BurntSushi/ripgrep/master/complete/_rg\""
     "eza:curl \"https://raw.githubusercontent.com/eza-community/eza/main/completions/zsh/_eza\""
     "go:curl \"https://raw.githubusercontent.com/zsh-users/zsh-completions/master/src/_golang\""
+    "jj:jj util completion zsh"
 )
 
 # The directory where completions are stored.
@@ -162,5 +163,5 @@ if ! [[ -d "$highlighting" ]]; then
 fi
 source "$highlighting/zsh-syntax-highlighting.zsh"
 
-# bun completions
-[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+# add Pulumi to the PATH
+export PATH=$PATH:/Users/ianwahbe/.pulumi/bin

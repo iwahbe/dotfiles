@@ -49,11 +49,26 @@ if exe_exists emacs; then
     export EDITOR='emacs -nw'
 fi
 
-if exe_exists pulumi; then
+if [[ -d "$HOME/.pulumi/bin" ]]; then
+    add_to_path "$HOME/.pulumi/bin"
     export PULUMI_SUPPRESS_COPILOT_LINK=true
+fi
+
+if [[ -d "$HOME/.pulumi-dev/bin" ]]; then
+    add_to_path "$HOME/.pulumi-dev/bin"
 fi
 
 if exe_exists bun; then
     export BUN_INSTALL="$HOME/.bun"
     export PATH="$BUN_INSTALL/bin:$PATH"
 fi
+
+if [[ -d "/usr/local/texlive/2024basic/bin/universal-darwin" ]]; then
+    add_to_path "/usr/local/texlive/2024basic/bin/universal-darwin"
+fi
+
+# bun completions
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
+
+# Haskell
+[ -f "$HOME/.ghcup/env" ] && source "$HOME/.ghcup/env" # ghcup-env
