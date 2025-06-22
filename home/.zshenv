@@ -54,10 +54,6 @@ if [[ -d "$HOME/.pulumi/bin" ]]; then
     export PULUMI_SUPPRESS_COPILOT_LINK=true
 fi
 
-if [[ -d "$HOME/.pulumi-dev/bin" ]]; then
-    add_to_path "$HOME/.pulumi-dev/bin"
-fi
-
 if exe_exists bun; then
     export BUN_INSTALL="$HOME/.bun"
     export PATH="$BUN_INSTALL/bin:$PATH"

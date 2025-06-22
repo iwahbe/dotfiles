@@ -100,7 +100,11 @@ alias cl='clear; ls'
 
 if exe_exists pulumi; then
     alias pu=pulumi
-    alias pu:upgrade='GITHUB_TOKEN=$(gh auth token) upgrade-provider pulumi/$(basename $PWD)'
+    # To be read as:
+    #
+    # Review stack: run ...
+    alias rs:run="pulumi env run pulumi/iwahbe/dev-stack --interactive -- "
+    alias dev-casey:run="pulumi env run pulumi/iwahbe/casey-dev-stack --interactive -- "
 fi
 
 if exe_exists terraform; then

@@ -734,7 +734,8 @@ to directory DIR."
   "v" #'magit
   "t" #'i/project-vterm
   "r" #'i/project-switch-to-most-recent
-  "p" #'i/project-switch-project)
+  "p" #'i/project-switch-project
+  "n" #'i/org-project-notes)
 
 
 
@@ -824,10 +825,7 @@ to directory DIR."
   (keymap-global-set "<remap> <switch-to-buffer>" #'consult-buffer)
   (keymap-global-set "<remap> <switch-to-buffer-other-frame>" #'consult-buffer-other-frame)
   (keymap-global-set "<remap> <switch-to-buffer-other-window>" #'consult-buffer-other-window)
-  (keymap-set isearch-mode-map "<remap> <isearch-edit-string>" #'consult-isearch-history)
-
-  (with-eval-after-load 'consult
-    (setq consult-ripgrep-args (concat consult-ripgrep-args " --hidden"))))
+  (keymap-set isearch-mode-map "<remap> <isearch-edit-string>" #'consult-isearch-history))
 
 
 
@@ -1239,6 +1237,10 @@ Operate on the region defined by START to END."
                         (cons lang t))
                       i/org-babel-languages)))))
 
+(with-eval-after-load 'org
+  (add-to-list 'org-src-lang-modes '("json" . jsonian))
+  (add-to-list 'org-src-lang-modes '("md" . markdown)))
+
 (with-eval-after-load 'ol (require 'org-gh))
 
 ;; `org-mode' is structured around putting all your =.org= files into a single
@@ -1591,8 +1593,8 @@ The opening \" should be after START and the closing \" should be before END."
       (delete-char 1)
       (insert-char ?`))))
 
-(elpaca (testrun :host github :repo "t0yv0/testrun.el"
-                 :remotes ("iwahbe" :repo "iwahbe/testrun.el")))
+(elpaca (testrun :host github :repo "iwahbe/testrun.el"
+                 :remotes ("t0yv0" :repo "t0yv0/testrun.el")))
 
 
 
@@ -1712,7 +1714,6 @@ The opening \" should be after START and the closing \" should be before END."
 
 ;;; Major Modes: `terraform-mode'
 
-
 ;; OPEN_SOURCE:
 ;;
 ;; * Currently, `terraform-format-on-save' is a destructive operation. We could replace
@@ -1723,15 +1724,64 @@ The opening \" should be after START and the closing \" should be before END."
 
 
 
+;;; Major Modes: `jj-description-mode'
+
+(defgroup jj nil
+  "Controls for the Jujitsu VCS system."
+  :group 'tools
+  :link '(url-link "https://jj-vcs.github.io/jj/latest/"))
+
+
+(define-derived-mode jj-description-mode text-mode
+  "A major mode for authoring commits for the Jujitsu VCS."
+  :group 'jj
+  :syntax-table (make-syntax-table text-mode-syntax-table)
+  (setq-local
+   font-lock-keywords t
+   syntax-propertize-function (syntax-propertize-rules
+                               ((rx line-start (group "JJ:")) (1 "<"))
+                               ((rx (group "\n"))  (1 ">")))
+   comment-start "JJ:"
+   comment-end ""
+   fill-column 80
+   comment-insert-comment-function
+   (lambda ()
+     "Insert a comment for JJ.
+
+Since comments in Jujitsu must start at the beginning of a line, we need
+to have a custom comment insertion function."
+     (newline) (insert comment-start comment-padding)))
+  (auto-fill-mode))
+
+(add-to-list 'auto-mode-alist '("\\.jjdescription\\'" . jj-description-mode))
+
+
+
 ;;; ChatGPT with OpenAI
 
 ;; I have written a package for interacting with ChatGPT called
 ;; https://github.com/iwahbe/chat.el. This provides basic functionality to interact with
 ;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
 (elpaca (chat.el :host github :repo "iwahbe/chat.el")
-  (setq chat-model "gpt-4o")
+  (setq chat-model "gpt-4o"
+        chat-max-tokens 5000)
   (i/1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key)
   (keymap-global-set "C-c c" #'chat-query-dwim))
+
+
+
+;;; Harper, a LSP for the English Language
+
+(with-eval-after-load 'eglot
+  ;; Registering each desired mode is unfortunately necessary, since `eglot' seems to use
+  ;; this to determine which language_id to send to harper-ls.
+  ;;
+  ;; Just registering text-mode results in harper not handling any language specific
+  ;; features (like skipping directives in org-mode).
+  (mapc (lambda (mode)
+          (add-to-list 'eglot-server-programs
+              `(,mode . ("harper-ls" "--stdio"))))
+        '(org-mode markdown-mode)))
 
 
 
@@ -1821,7 +1871,7 @@ DEPTH specifies how many levels to search through."
     m))
 
 (defun i/pulumi-replace (&optional arg)
-  "Insert the appropriate `replace` directive for a pulumi project."
+  "Insert the appropriate `replace` directive to ARG for a Pulumi project."
   (interactive
    (list (completing-read "Select replace target: "
                           (i/pulumi-module-path-map)
