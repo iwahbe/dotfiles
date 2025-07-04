@@ -962,15 +962,16 @@ This command reads the abbreviation from the minibuffer."
 ;;
 ;; Borrowed from https://github.com/joaotavora/eglot/discussions/993.
 (with-eval-after-load 'eglot
+  (eval-when-compile (require 'eglot))
   (setq eglot-events-buffer-config '(:size 0 :format 'lisp)
         eglot-ignored-server-capabilities '(:hoverProvider
                                             :documentHighlightProvider)
-        eglot-autoshutdown t))
-
-(i/define-keymap i/lsp-map
-  "Common functions for LSP."
-  "a" #'eglot-code-actions
-  "r" #'eglot-rename)
+        eglot-autoshutdown t)
+  (i/define-keymap i/lsp-map
+    "Common functions for LSP."
+    "a" #'eglot-code-actions
+    "r" #'eglot-rename)
+  (keymap-set eglot-mode-map "M-p" i/lsp-map))
 
 (cl-defmacro i/lsp-declare (mode &key require program)
   "Declare that MODE should launch a LSP server.
@@ -987,9 +988,7 @@ underlying LSP plugin if not specified."
      (with-eval-after-load ',(or require mode)
 
        ;; Ensure that we have `eglot' up and running on new files.
-       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'i/lsp--ensure)
-       ;; Create a common binding to commonly used LSP functions.
-       (keymap-set ,(intern (concat (symbol-name mode) "-map")) "M-p" i/lsp-map))))
+       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'i/lsp--ensure))))
 
 
 

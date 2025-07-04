@@ -103,7 +103,18 @@ if exe_exists pulumi; then
     # To be read as:
     #
     # Review stack: run ...
-    alias rs:run="pulumi env run pulumi/iwahbe/dev-stack --interactive -- "
+    alias rs:run="pulumi env run pulumi/iwahbe/iwahbe-review-stack-for-pulumi --interactive -- "
+    function rs:api {
+        local backend_url
+        local access_token
+        backend_url=$(pulumi env get pulumi/iwahbe/dev-stack review_stack.backend_url --value json | jq --raw-output)/api
+        access_token=$(pulumi env get pulumi/iwahbe/dev-stack review_stack.user_access_token --value json | jq --raw-output)
+        echo Authenticed request on "${backend_url}/$1" >&2
+        /opt/homebrew/Cellar/curl/8.12.1/bin/curl \
+               -H "Accept: application/vnd.pulumi+8" \
+               -H "Authorization: token $access_token" \
+               -L "${backend_url}/$1"
+    }
     alias dev-casey:run="pulumi env run pulumi/iwahbe/casey-dev-stack --interactive -- "
 fi
 
