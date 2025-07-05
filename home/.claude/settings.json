@@ -1,5 +1,18 @@
 {
     "permissions": {
         "defaultMode": "acceptEdits"
+    },
+    "hooks": {
+        "Stop": [
+            {
+                "matcher": "*",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "/Users/ianwahbe/.claude/notify.sh"
+                    }
+                ]
+            }
+        ]
     }
 }
