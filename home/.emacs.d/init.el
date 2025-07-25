@@ -1653,7 +1653,7 @@ The opening \" should be after START and the closing \" should be before END."
 (if (treesit-ready-p 'python)
     (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode)))
 
-(i/lsp-declare python-mode :program "pyright-langserver")
+(i/lsp-declare python-mode :program ("pyright-langserver" "--stdio"))
 
 
 

@@ -1,6 +1,24 @@
 {
     "permissions": {
         "defaultMode": "acceptEdits"
+        "allow": [
+            "Bash(make:*)",
+            "Bash(grep:*)",
+            "Bash(rg:*)",
+            "Bash(go test:*)",
+            "Bash(find:*)",
+            "WebFetch(domain:github.com)",
+            "Bash(docker build:*)",
+            "Bash(uv lock:*)",
+            "Bash(docker run:*)",
+            "Bash(uv sync:*)",
+            "Bash(ls:*)",
+            "Bash(mkdir:*)",
+            "Bash(mv:*)",
+            "Bash(gh pr view:*)",
+            "Bash(gofmt:*)"
+        ],
+        "deny": []
     },
     "hooks": {
         "Stop": [
@@ -9,7 +27,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "/Users/ianwahbe/.claude/notify.sh"
+                        "command": "osascript -e 'display notification \"Claude has finished and is waiting for input\" with title \"Claude Code\" sound name \"Glass\"'"
                     }
                 ]
             }

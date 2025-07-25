@@ -111,9 +111,11 @@ if exe_exists pulumi; then
         access_token=$(pulumi env get pulumi/iwahbe/dev-stack review_stack.user_access_token --value json | jq --raw-output)
         echo Authenticed request on "${backend_url}/$1" >&2
         /opt/homebrew/Cellar/curl/8.12.1/bin/curl \
-               -H "Accept: application/vnd.pulumi+8" \
-               -H "Authorization: token $access_token" \
-               -L "${backend_url}/$1"
+            -X GET \
+            -H "Accept: application/vnd.pulumi+8" \
+            -H "Authorization: token $access_token" \
+            ${2:+--data} ${2:+"$2"} \
+            -L "${backend_url}/$1"
     }
     alias dev-casey:run="pulumi env run pulumi/iwahbe/casey-dev-stack --interactive -- "
 fi
