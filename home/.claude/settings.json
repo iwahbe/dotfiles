@@ -1,36 +1,41 @@
 {
-    "permissions": {
-        "defaultMode": "acceptEdits"
-        "allow": [
-            "Bash(make:*)",
-            "Bash(grep:*)",
-            "Bash(rg:*)",
-            "Bash(go test:*)",
-            "Bash(find:*)",
-            "WebFetch(domain:github.com)",
-            "Bash(docker build:*)",
-            "Bash(uv lock:*)",
-            "Bash(docker run:*)",
-            "Bash(uv sync:*)",
-            "Bash(ls:*)",
-            "Bash(mkdir:*)",
-            "Bash(mv:*)",
-            "Bash(gh pr view:*)",
-            "Bash(gofmt:*)"
-        ],
-        "deny": []
-    },
-    "hooks": {
-        "Stop": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "osascript -e 'display notification \"Claude has finished and is waiting for input\" with title \"Claude Code\" sound name \"Glass\"'"
-                    }
-                ]
-            }
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(go test:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(docker build:*)",
+      "Bash(uv lock:*)",
+      "Bash(docker run:*)",
+      "Bash(uv sync:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gofmt:*)"
+    ],
+    "deny": [],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude has finished and is waiting for input\" with title \"Claude Code\" sound name \"Glass\"'"
+          }
         ]
-    }
+      }
+    ]
+  },
+  "feedbackSurveyState": {
+    "lastShownTime": 1754156839358
+  },
+  "$schema": "https://json.schemastore.org/claude-code-settings.json"
 }

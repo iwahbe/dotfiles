@@ -1428,6 +1428,13 @@ Unlike `i/org-global-map', these keys are only accessible in an
 
 ;;; Terminal Emulation
 
+;; Experiment, lets try `eat' (Emulate A Terminal) out. At minimum, it has the best
+;; acronym.
+;;
+;; If zsh isn't working, make sure we have called `eat-compile-terminfo'.
+(elpaca eat
+  (setq eat-kill-buffer-on-exit t))
+
 ;; There are quite a few different terminal emulators for Emacs, from the built in `term'
 ;; to the fully Emacs Lisp based shell `eshell'. I prefer
 ;; https://github.com/akermu/emacs-libvterm (`vterm'), an Emacs integration of the
@@ -1665,6 +1672,14 @@ The opening \" should be after START and the closing \" should be before END."
 
 (i/lsp-declare rust-mode)
 
+
+
+;;; Major Modes: `dockerfile-mode'
+
+(elpaca dockerfile-mode)
+
+
+
 ;;; Major Modes: `haskell-mode'
 
 (elpaca haskell-mode)
@@ -1672,6 +1687,8 @@ The opening \" should be after START and the closing \" should be before END."
           (lambda () (add-hook 'before-save-hook #'eglot-format-buffer nil t)))
 
 (i/lsp-declare haskell-mode :program ("haskell-language-server-wrapper" "--lsp"))
+
+
 
 ;;; Major Modes: `elixir-mode'
 
