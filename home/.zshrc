@@ -185,6 +185,9 @@ if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
     fi
 fi
 
+[ -n "$EAT_SHELL_INTEGRATION_DIR" ] && \
+  source "$EAT_SHELL_INTEGRATION_DIR/zsh"
+
 # Setup syntax highlighting for zsh.
 local highlighting="$_zsh_cache/zsh-syntax-highlighting"
 if ! [[ -d "$highlighting" ]]; then

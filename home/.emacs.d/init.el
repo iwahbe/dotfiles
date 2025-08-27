@@ -155,7 +155,8 @@ If ENSURE is non-nil, create the file if it does not exist."
 
 ;; This is the install script straight from the elpaca repo:
 
-(defvar elpaca-installer-version 0.9)
+(defvar elpaca-installer-version 0.11)
+(defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
 (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
 (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
 (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
@@ -169,7 +170,7 @@ If ENSURE is non-nil, create the file if it does not exist."
   (add-to-list 'load-path (if (file-exists-p build) build repo))
   (unless (file-exists-p repo)
     (make-directory repo t)
-    (when (< emacs-major-version 28) (require 'subr-x))
+    (when (<= emacs-major-version 28) (require 'subr-x))
     (condition-case-unless-debug err
         (if-let* ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
                   ((zerop (apply #'call-process `("git" nil ,buffer t "clone"
@@ -189,7 +190,7 @@ If ENSURE is non-nil, create the file if it does not exist."
   (unless (require 'elpaca-autoloads nil t)
     (require 'elpaca)
     (elpaca-generate-autoloads "elpaca" repo)
-    (load "./elpaca-autoloads")))
+    (let ((load-source-file-function nil)) (load "./elpaca-autoloads"))))
 (add-hook 'after-init-hook #'elpaca-process-queues)
 (elpaca `(,@elpaca-order))
 (elpaca popon :repo "https://codeberg.org/akib/emacs-popon.git")
@@ -732,7 +733,7 @@ to directory DIR."
   "C-f" #'consult-find
   "g" #'consult-ripgrep
   "v" #'magit
-  "t" #'i/project-vterm
+  "t" #'eat-project
   "r" #'i/project-switch-to-most-recent
   "p" #'i/project-switch-project
   "n" #'i/org-project-notes)
@@ -976,19 +977,23 @@ This command reads the abbreviation from the minibuffer."
 (cl-defmacro i/lsp-declare (mode &key require program)
   "Declare that MODE should launch a LSP server.
 
+MODE may be a major-mode, or a list of major modes.
+
 REQUIRE is the feature provided by the package.  It is assumed to
 be the same as mode if not specified.
 
 PROGRAM is the name or path of the LSP server, left to the
 underlying LSP plugin if not specified."
-  `(progn
-     ,(when program
-        `(with-eval-after-load 'eglot
-           (add-to-list 'eglot-server-programs '((,mode) . ,program))))
-     (with-eval-after-load ',(or require mode)
-
-       ;; Ensure that we have `eglot' up and running on new files.
-       (add-hook ',(intern (concat (symbol-name mode) "-hook")) #'i/lsp--ensure))))
+  (let ((mode-list (if (listp mode) mode (list mode))))
+    `(progn
+       ,(when program
+          `(with-eval-after-load 'eglot
+             (add-to-list 'eglot-server-programs '((,@mode-list) . ,program))))
+       (with-eval-after-load ',(or require mode)
+         ,@(mapcar (lambda (m)
+                   ;; Ensure that we have `eglot' up and running on new files.
+                   `(add-hook ',(intern (concat (symbol-name m) "-hook")) #'i/lsp--ensure))
+                 mode-list)))))
 
 
 
@@ -1374,6 +1379,10 @@ Operate on the region defined by START to END."
     (when (file-exists-p f)
       (load-file f))))
 
+(defun i/org-agenda-default-view ()
+  (interactive)
+  (org-agenda nil "n"))
+
 (i/define-keymap i/org-global-map
   "My globally accessible org map."
   :global "M-o"
@@ -1381,10 +1390,7 @@ Operate on the region defined by START to END."
   "r" #'org-roam-capture
   "c" #'org-capture
   "d" #'org-roam-dailies-goto-today
-  "a" (lambda () (interactive) (org-agenda nil "n"))
-  "b" (lambda ()
-        (interactive)
-        (find-file i/org-default-bibliography)))
+  "a" #'i/org-agenda-default-view)
 
 (with-eval-after-load 'org-roam
   ;; From https://jethrokuan.github.io/org-roam-guide/
@@ -1433,7 +1439,19 @@ Unlike `i/org-global-map', these keys are only accessible in an
 ;;
 ;; If zsh isn't working, make sure we have called `eat-compile-terminfo'.
 (elpaca eat
-  (setq eat-kill-buffer-on-exit t))
+  (with-eval-after-load 'project
+    (defalias 'project-shell 'eat-project))
+  (setq eat-kill-buffer-on-exit t
+        eat-enable-shell-prompt-annotation nil
+        eat-enable-shell-command-history nil)
+
+  ;; We ensure that `eat' buffers are cleaned up when they are a part of a project by
+  ;; adding them to `project-kill-buffers'.
+  (with-eval-after-load 'project
+    (add-to-list 'project-kill-buffer-conditions
+	         '(and
+	           (derived-mode . eat-mode)
+	           "^\\*.*-eat\\*$"))))
 
 ;; There are quite a few different terminal emulators for Emacs, from the built in `term'
 ;; to the fully Emacs Lisp based shell `eshell'. I prefer
@@ -1442,23 +1460,30 @@ Unlike `i/org-global-map', these keys are only accessible in an
 ;; terminal, just like Termnial.app or https://github.com/alacritty/alacritty.
 (elpaca vterm
   (setq vterm-max-scrollback 10000)
+  (with-eval-after-load 'project
+    ;; We ensure that `vterm' buffers are cleaned up when they are a part of a project by
+    ;; adding them to `project-kill-buffers'.
+    (add-to-list 'project-kill-buffer-conditions
+	         '(and
+	           (derived-mode . vterm-mode)
+	           "^\\*vterm<.*>\\*$")))
   (i/advise-once #'vterm :before
-                (lambda (&rest _)
-                  ;; `vterm' is capable of running Emacs recursively, but exiting is
-                  ;; hard. To solve this problem, I have aliased "emacs" to "emacsclient"
-                  ;; in "home/.zshrc" when [[ "$INSIDE_EMACS" = "vterm" ]]:
-                  ;;
-                  ;;     alias emacs='emacsclient --quiet'
-                  ;;
-                  ;; To ensure that the client accesses the instance of Emacs that is
-                  ;; hosting `vterm', we need to ensure that the server is running and
-                  ;; that we set EMACS_SOCKET_NAME to the server name.
-                  ;;
-                  ;; See
-                  ;; https://www.gnu.org/software/emacs/manual/html_node/emacs/emacsclient-Options.html
-                  ;; for details.
-                  (i/server-ensure)
-                  (push (concat "EMACS_SOCKET_NAME=" server-name) vterm-environment))))
+                 (lambda (&rest _)
+                   ;; `vterm' is capable of running Emacs recursively, but exiting is
+                   ;; hard. To solve this problem, I have aliased "emacs" to "emacsclient"
+                   ;; in "home/.zshrc" when [[ "$INSIDE_EMACS" = "vterm" ]]:
+                   ;;
+                   ;;     alias emacs='emacsclient --quiet'
+                   ;;
+                   ;; To ensure that the client accesses the instance of Emacs that is
+                   ;; hosting `vterm', we need to ensure that the server is running and
+                   ;; that we set EMACS_SOCKET_NAME to the server name.
+                   ;;
+                   ;; See
+                   ;; https://www.gnu.org/software/emacs/manual/html_node/emacs/emacsclient-Options.html
+                   ;; for details.
+                   (i/server-ensure)
+                   (push (concat "EMACS_SOCKET_NAME=" server-name) vterm-environment))))
 
 (defun i/project-vterm (&optional arg)
   "A project aware invocation of `vterm'.
@@ -1471,15 +1496,26 @@ ARG is passed to `vterm' without processing."
 	(vterm arg))
     (vterm arg)))
 
-(with-eval-after-load 'project
-  (defalias 'project-shell 'i/project-vterm)
+
 
-  ;; We ensure that `vterm' buffers are cleaned up when they are a part of a project by
-  ;; adding them to `project-kill-buffers'.
-  (add-to-list 'project-kill-buffer-conditions
-	       '(and
-	         (derived-mode . vterm-mode)
-	         "^\\*vterm<.*>\\*$")))
+;;; Tool integration: `claude-code-ide'
+
+(elpaca (claude-code-ide
+         :host github
+         :repo "manzaltu/claude-code-ide.el")
+  (claude-code-ide-emacs-tools-setup) ; Optionally enable Emacs MCP tools
+
+  (defun i/claude-code-ide-toggle ()
+    (interactive)
+    (if (let* ((working-dir (claude-code-ide--get-working-directory))
+               (buffer-name (claude-code-ide--get-buffer-name)))
+          (get-buffer buffer-name))
+        (claude-code-ide-toggle)
+      (claude-code-ide)))
+
+  (i/define-keymap i/claude-code-ide
+    :global "C-c l"
+    "t" #'i/claude-code-ide-toggle))
 
 
 
@@ -1660,7 +1696,7 @@ The opening \" should be after START and the closing \" should be before END."
 (if (treesit-ready-p 'python)
     (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode)))
 
-(i/lsp-declare python-mode :program ("pyright-langserver" "--stdio"))
+(i/lsp-declare (python-mode python-ts-mode) :program ("uvx" "ty" "server"))
 
 
 

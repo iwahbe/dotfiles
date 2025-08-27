@@ -25,3 +25,5 @@
 # Testing Practices
 
 - In general, DO NOT use `assert.Contains`, prefer `assert.Equal`. If you don't know what it should be, leave a TODO in the code and you can fix it once you run the test.
+- IMPORTANT: Manually changing *generated files* means that YOU HAVE FAILED!
+- Never say "You're right"!!!
