@@ -1,4 +1,4 @@
-;;; pulumi-schema -- special interactions for Pulumi package schemas
+;;; pulumi-schema -- special interactions for Pulumi package schemas  -*- lexical-binding: t; -*-
 
 ;;; Commentary
 ;;
