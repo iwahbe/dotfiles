@@ -989,11 +989,11 @@ underlying LSP plugin if not specified."
        ,(when program
           `(with-eval-after-load 'eglot
              (add-to-list 'eglot-server-programs '((,@mode-list) . ,program))))
-       (with-eval-after-load ',(or require mode)
-         ,@(mapcar (lambda (m)
-                   ;; Ensure that we have `eglot' up and running on new files.
-                   `(add-hook ',(intern (concat (symbol-name m) "-hook")) #'i/lsp--ensure))
-                 mode-list)))))
+       ,@(mapcar (lambda (m)
+                   `(with-eval-after-load ',(or require m)
+                      ;; Ensure that we have `eglot' up and running on new files.
+                      (add-hook ',(intern (concat (symbol-name m) "-hook")) #'i/lsp--ensure)))
+                   mode-list))))
 
 
 
