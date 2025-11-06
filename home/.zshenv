@@ -38,6 +38,7 @@ fi
 if exe_exists go; then
    export GOPATH="$HOME/go"
    export GOBIN="$GOPATH/bin"
+   export HELPMAKEGO_EXPERIMENT_DAEMON=true # Enable the beta for https://github.com/iwahbe/helpmakego/releases/tag/v0.3.0
    add_to_path "$GOBIN"
 fi
 
@@ -54,7 +55,7 @@ if [[ -d "$HOME/.pulumi/bin" ]]; then
     export PULUMI_SUPPRESS_COPILOT_LINK=true
 fi
 
-if exe_exists bun; then
+if exe_exists "$HOME/.bun/bin/bun"; then
     export BUN_INSTALL="$HOME/.bun"
     export PATH="$BUN_INSTALL/bin:$PATH"
 fi

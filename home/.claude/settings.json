@@ -1,23 +1,29 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
-      "Bash(make:*)",
-      "Bash(grep:*)",
-      "Bash(rg:*)",
-      "Bash(go test:*)",
-      "Bash(find:*)",
-      "WebFetch(domain:github.com)",
-      "Bash(gh run view:*)",
+      "Bash(cat:*)",
       "Bash(docker build:*)",
-      "Bash(uv lock:*)",
       "Bash(docker run:*)",
-      "Bash(uv sync:*)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(dotnet nuget list:*)",
+      "Bash(find:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh run view:*)",
+      "Bash(git log:*)",
+      "Bash(go test:*)",
+      "Bash(gofmt:*)",
+      "Bash(grep:*)",
       "Bash(ls:*)",
+      "Bash(make:*)",
       "Bash(mkdir:*)",
       "Bash(mv:*)",
-      "Bash(gh pr view:*)",
-      "Bash(gofmt:*)"
+      "Bash(rg:*)",
+      "Bash(uv lock:*)",
+      "Bash(uv sync:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
@@ -35,8 +41,8 @@
       }
     ]
   },
+  "alwaysThinkingEnabled": false,
   "feedbackSurveyState": {
     "lastShownTime": 1754156839358
-  },
-  "$schema": "https://json.schemastore.org/claude-code-settings.json"
+  }
 }

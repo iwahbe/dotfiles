@@ -10,10 +10,7 @@
 
 ;; Set the custom file as soon as possible, to prevent emacs from writing to this file.
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
-
-;; We do not load the custom file, since we want all customizations to occur here.
-;;
-;;    (when (file-exists-p custom-file) (load custom-file))
+(when (file-exists-p custom-file) (load custom-file))
 
 
 ;; Add some helpers to the load path.
@@ -1636,7 +1633,8 @@ The opening \" should be after START and the closing \" should be before END."
       (insert-char ?`))))
 
 (elpaca (testrun :host github :repo "iwahbe/testrun.el"
-                 :remotes ("t0yv0" :repo "t0yv0/testrun.el")))
+                 :remotes ("t0yv0" :repo "t0yv0/testrun.el"))
+  (setq testrun--go-verbose t))
 
 
 
@@ -1834,6 +1832,19 @@ to have a custom comment insertion function."
           (add-to-list 'eglot-server-programs
               `(,mode . ("harper-ls" "--stdio"))))
         '(org-mode markdown-mode)))
+
+
+
+;;; Proof-general
+
+(elpaca proof-general)
+
+(copy-face 'font-lock-comment-face 'i/font-lock-variable-pitch-comment-face)
+(set-face-attribute 'i/font-lock-variable-pitch-comment-face nil :inherit 'variable-pitch)
+;; Logical-foundations has a lot of text, and it's easier to read as variable width.
+(add-hook 'coq-mode-hook (lambda () (set
+                                     (make-local-variable 'font-lock-comment-face)
+                                     'i/font-lock-variable-pitch-comment-face)))
 
 
 

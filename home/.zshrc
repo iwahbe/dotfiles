@@ -156,6 +156,10 @@ if exe_exists atuin; then
     eval "$(atuin init --disable-up-arrow zsh)"
 fi
 
+if exe_exists mise; then
+    eval "$(mise activate zsh)"
+fi
+
 # Terminal side configuration for libvterm.
 #
 # This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
@@ -198,3 +202,10 @@ source "$highlighting/zsh-syntax-highlighting.zsh"
 
 # add Pulumi to the PATH
 export PATH=$PATH:/Users/ianwahbe/.pulumi/bin
+
+# bun completions
+[ -s "/Users/ianwahbe/.bun/_bun" ] && source "/Users/ianwahbe/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
