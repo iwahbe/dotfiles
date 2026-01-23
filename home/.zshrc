@@ -27,6 +27,7 @@ completions_sources=(
     "eza:curl \"https://raw.githubusercontent.com/eza-community/eza/main/completions/zsh/_eza\""
     "go:curl \"https://raw.githubusercontent.com/zsh-users/zsh-completions/master/src/_golang\""
     "jj:jj util completion zsh"
+    "mise:mise completions zsh"
 )
 
 # The directory where completions are stored.
@@ -97,6 +98,8 @@ else
 fi
 
 alias cl='clear; ls'
+
+alias ghstack='OAUTH_TOKEN=$(gh auth token) uv tool run ghstack'
 
 if exe_exists pulumi; then
     alias pu=pulumi

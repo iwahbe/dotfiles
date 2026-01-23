@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+#
+# github-release-at-date
+#
+# Find the "then current" release of a GitHub repository for a given date.
+# This returns the most recent release that was published on or before the specified date.
+#
+# Usage:
+#   ./github-release-at-date.sh <owner/repo> <date>
+#
+# Examples:
+#   ./github-release-at-date.sh pulumi/pulumi 2025-12-08
+#   ./github-release-at-date.sh kubernetes/kubernetes 2024-06-15
+#
+# Requirements:
+#   - curl
+#   - jq
+#
+# Optional:
+#   - Set GITHUB_TOKEN environment variable for higher API rate limits
+
+set -euo pipefail
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <owner/repo> <date>
+
+Find the GitHub release that was current on a specific date.
+
+Arguments:
+    owner/repo    GitHub repository (e.g., pulumi/pulumi)
+    date          Target date in YYYY-MM-DD format (e.g., 2025-12-08)
+
+Options:
+    -h, --help    Show this help message
+    -v, --verbose Show additional details about the release
+    -j, --json    Output full release JSON
+
+Environment:
+    GITHUB_TOKEN  Optional GitHub token for higher API rate limits
+
+Examples:
+    $(basename "$0") pulumi/pulumi 2025-12-08
+    $(basename "$0") -v kubernetes/kubernetes 2024-06-15
+EOF
+    exit "${1:-0}"
+}
+
+# Parse arguments
+VERBOSE=false
+JSON_OUTPUT=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage 0
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -j|--json)
+            JSON_OUTPUT=true
+            shift
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            usage 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ $# -lt 2 ]]; then
+    echo "Error: Missing required arguments" >&2
+    usage 1
+fi
+
+REPO="$1"
+TARGET_DATE="$2"
+
+# Validate date format
+if ! [[ "$TARGET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    echo "Error: Date must be in YYYY-MM-DD format" >&2
+    exit 1
+fi
+
+# Validate repo format
+if ! [[ "$REPO" =~ ^[^/]+/[^/]+$ ]]; then
+    echo "Error: Repository must be in owner/repo format" >&2
+    exit 1
+fi
+
+# Build auth header if token is available
+AUTH_HEADER=""
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    AUTH_HEADER="Authorization: Bearer $GITHUB_TOKEN"
+fi
+
+# Convert target date to ISO 8601 timestamp (end of day)
+TARGET_TIMESTAMP="${TARGET_DATE}T23:59:59Z"
+
+# Fetch releases and find the one current at the target date
+# We need to paginate through releases to find older ones
+PAGE=1
+PER_PAGE=100
+FOUND_RELEASE=""
+
+while true; do
+    # Build curl command
+    CURL_ARGS=(-s -f)
+    if [[ -n "$AUTH_HEADER" ]]; then
+        CURL_ARGS+=(-H "$AUTH_HEADER")
+    fi
+    CURL_ARGS+=(-H "Accept: application/vnd.github+json")
+
+    URL="https://api.github.com/repos/${REPO}/releases?per_page=${PER_PAGE}&page=${PAGE}"
+
+    # Fetch releases
+    RESPONSE=$(curl "${CURL_ARGS[@]}" "$URL" 2>/dev/null) || {
+        echo "Error: Failed to fetch releases from GitHub API" >&2
+        echo "Check that the repository exists: https://github.com/${REPO}" >&2
+        exit 1
+    }
+
+    # Check if we got any releases
+    RELEASE_COUNT=$(echo "$RESPONSE" | jq 'length')
+    if [[ "$RELEASE_COUNT" -eq 0 ]]; then
+        break
+    fi
+
+    # Find the first release published on or before the target date
+    # (releases are returned in reverse chronological order)
+    FOUND_RELEASE=$(echo "$RESPONSE" | jq -r --arg target "$TARGET_TIMESTAMP" '
+        [.[] | select(.published_at <= $target and .draft == false)] | first // empty
+    ')
+
+    if [[ -n "$FOUND_RELEASE" && "$FOUND_RELEASE" != "null" ]]; then
+        break
+    fi
+
+    # Check if we've reached the end of releases
+    if [[ "$RELEASE_COUNT" -lt "$PER_PAGE" ]]; then
+        break
+    fi
+
+    ((PAGE++))
+
+    # Safety limit to avoid infinite loops
+    if [[ "$PAGE" -gt 50 ]]; then
+        echo "Warning: Searched through 5000+ releases without finding one before $TARGET_DATE" >&2
+        break
+    fi
+done
+
+if [[ -z "$FOUND_RELEASE" || "$FOUND_RELEASE" == "null" ]]; then
+    echo "No release found for $REPO on or before $TARGET_DATE" >&2
+    exit 1
+fi
+
+# Output results
+if [[ "$JSON_OUTPUT" == true ]]; then
+    echo "$FOUND_RELEASE" | jq .
+elif [[ "$VERBOSE" == true ]]; then
+    TAG=$(echo "$FOUND_RELEASE" | jq -r '.tag_name')
+    NAME=$(echo "$FOUND_RELEASE" | jq -r '.name // .tag_name')
+    PUBLISHED=$(echo "$FOUND_RELEASE" | jq -r '.published_at')
+    URL=$(echo "$FOUND_RELEASE" | jq -r '.html_url')
+    PRERELEASE=$(echo "$FOUND_RELEASE" | jq -r '.prerelease')
+
+    echo "Repository:    $REPO"
+    echo "Target Date:   $TARGET_DATE"
+    echo "---"
+    echo "Release Tag:   $TAG"
+    echo "Release Name:  $NAME"
+    echo "Published:     $PUBLISHED"
+    echo "Prerelease:    $PRERELEASE"
+    echo "URL:           $URL"
+else
+    echo "$FOUND_RELEASE" | jq -r '.tag_name'
+fi

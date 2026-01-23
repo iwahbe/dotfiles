@@ -14,6 +14,11 @@ function add_to_path {
 }
 export USER_PATH
 
+local repo_root="${${(%):-%x}:A:h:h}"
+
+add_to_path "$repo_root/gbin"
+
+
 if [[ -d "/usr/local/bin" ]]; then
    add_to_path "/usr/local/bin"
 fi

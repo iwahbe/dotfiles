@@ -9,7 +9,10 @@
       "Bash(dotnet --list-sdks)",
       "Bash(dotnet nuget list:*)",
       "Bash(find:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh pr checks:*)",
       "Bash(gh pr diff:*)",
+      "Bash(gh pr list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh run view:*)",
       "Bash(git log:*)",
@@ -23,7 +26,54 @@
       "Bash(rg:*)",
       "Bash(uv lock:*)",
       "Bash(uv sync:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(git -C /Users/ianwahbe/Projects/iwahbe.com log --oneline -20)",
+      "Bash(npm install:*)",
+      "Bash(pulumi preview:*)",
+      "WebFetch(domain:www.pulumi.com)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(cargo init:*)",
+      "Bash(worker-build --release)",
+      "Bash(cargo update:*)",
+      "Bash(pulumi up:*)",
+      "Bash(curl https://iwahbe-blog-demo.ian-221.workers.dev)",
+      "WebFetch(domain:crates.io)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(pulumi env run:*)",
+      "Bash(zola build:*)",
+      "Bash(curl:*)",
+      "Bash(cargo build:*)",
+      "Bash(./target/release/blog-cli post:*)",
+      "Bash(./scripts/integration-test.sh:*)",
+      "Bash(SKIP_CLEANUP=true ./scripts/integration-test.sh:*)",
+      "Bash(cargo run:*)",
+      "Bash(npx wrangler d1 execute:*)",
+      "Bash(npx wrangler deploy:*)",
+      "Bash(tree:*)",
+      "Bash(du -sh:*)",
+      "Bash(pulumi config set:*)",
+      "Bash(pulumi env:*)",
+      "Bash(export CLOUDFLARE_API_TOKEN=\"vhdQU_fKl1xAUYrT2SMlZBq7XVoXilHj4ijaizLp\")",
+      "Bash(npx wrangler:*)",
+      "Bash(pulumi stack output:*)",
+      "Bash(pulumi config get:*)",
+      "Bash(../../scripts/integration-test.sh)",
+      "Bash(for dir in ../../blog/*/)",
+      "Bash(do if [ -f \"$dir/index.md\" ])",
+      "Bash(pulumi --stack demo -C infrastructure preview)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(pulumi --stack demo -C infrastructure up --yes)",
+      "Bash(echo:*)",
+      "Bash(pulumi stack select:*)",
+      "Bash(tee:*)",
+      "Bash(git -C /Users/ianwahbe/Projects/iwahbe.com log --oneline --all --graph)",
+      "WebFetch(domain:iwahbe-blog-demo.ian-221.workers.dev)",
+      "Bash(fold:*)",
+      "WebFetch(domain:vercel.com)",
+      "Bash(cargo search:*)",
+      "WebFetch(domain:fasterthanli.me)",
+      "Bash(wrangler --version:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
@@ -41,8 +91,20 @@
       }
     ]
   },
-  "alwaysThinkingEnabled": false,
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": true
+  },
   "feedbackSurveyState": {
     "lastShownTime": 1754156839358
+  },
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
+    }
   }
 }
