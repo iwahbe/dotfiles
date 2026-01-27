@@ -20,3 +20,8 @@ style = "Regular"
 
 [window]
 option_as_alt = "Both"
+
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\u001B\r"

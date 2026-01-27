@@ -735,6 +735,16 @@ to directory DIR."
   "p" #'i/project-switch-project
   "n" #'i/org-project-notes)
 
+(defun i/project-compilation-buffer-name (name-of-mode)
+  "A `project' specific name for the `compile' buffer.
+
+The name depends on the current project & NAME-OF-MODE."
+  (concat "*" (downcase name-of-mode) "*"
+          (when-let* ((project (project-current)))
+            (concat " <" (project-name project) ">"))))
+
+(setq compilation-buffer-name-function #'i/project-compilation-buffer-name)
+
 
 
 ;;; Completion
@@ -1702,7 +1712,9 @@ The opening \" should be after START and the closing \" should be before END."
 
 ;; Rust is pretty simple, we want `rust-mode' and then a LSP on top:
 (elpaca rust-mode
-  (setq rust-format-on-save t))
+  ;; Format on save using eglot, not rustfmt
+  (add-hook 'rust-mode-hook
+            (lambda () (add-hook 'before-save-hook #'eglot-format-buffer nil t))))
 
 (i/lsp-declare rust-mode)
 
