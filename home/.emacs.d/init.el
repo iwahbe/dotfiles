@@ -486,18 +486,20 @@ Other currently loaded themes are disabled."
   ;; Disable previous themes
   (mapc #'disable-theme (cdr custom-enabled-themes)))
 
-(elpaca moe-theme
+(elpaca (moe-theme :host github :repo "iwahbe/moe-theme.el" :ref "iwahbe/lexical-binding"
+                   :remotes ("kuanyui" :repo "kuanyui/moe-theme.el"))
   (setq i/default-themes '((light . moe-light)
-                          (dark  . moe-dark)))
-  ;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
-  ;; hooks to support system appearance change. I want use these hooks when available.
-  (if (boundp 'ns-system-appearance)
-      ;; This hook will be called later during the startup process, so we don't need to
-      ;; manually call `i/load-theme'.
-      (i/add-hook ns-system-appearance-change-functions #'i/load-theme)
-    ;; When there isn't any system input for the theme, we will just load the ='light=
-    ;; theme by default.
-    (i/load-theme 'light)))
+                           (dark  . moe-dark))))
+
+;; Mac has a concept of light and dark mode at the system level. Emacs can be built with
+;; hooks to support system appearance change. I want use these hooks when available.
+(if (boundp 'ns-system-appearance)
+    ;; This hook will be called later during the startup process, so we don't need to
+    ;; manually call `i/load-theme'.
+    (i/add-hook ns-system-appearance-change-functions #'i/load-theme)
+  ;; When there isn't any system input for the theme, we will just load the ='light=
+  ;; theme by default.
+  (i/load-theme 'light))
 
 
 
@@ -1448,6 +1450,11 @@ Unlike `i/org-global-map', these keys are only accessible in an
 (elpaca eat
   (with-eval-after-load 'project
     (defalias 'project-shell 'eat-project))
+  (add-hook 'eat-mode-hook
+            (lambda ()
+              (i/server-ensure)
+              (make-local-variable 'process-environment)
+              (push (concat "EMACS_SOCKET_NAME=" server-name) process-environment)))
   (setq eat-kill-buffer-on-exit t
         eat-enable-shell-prompt-annotation nil
         eat-enable-shell-command-history nil)
@@ -1502,27 +1509,6 @@ ARG is passed to `vterm' without processing."
 	    (vterm-buffer-name (concat "*vterm<" (project-name project) ">*")))
 	(vterm arg))
     (vterm arg)))
-
-
-
-;;; Tool integration: `claude-code-ide'
-
-(elpaca (claude-code-ide
-         :host github
-         :repo "manzaltu/claude-code-ide.el")
-  (claude-code-ide-emacs-tools-setup) ; Optionally enable Emacs MCP tools
-
-  (defun i/claude-code-ide-toggle ()
-    (interactive)
-    (if (let* ((working-dir (claude-code-ide--get-working-directory))
-               (buffer-name (claude-code-ide--get-buffer-name)))
-          (get-buffer buffer-name))
-        (claude-code-ide-toggle)
-      (claude-code-ide)))
-
-  (i/define-keymap i/claude-code-ide
-    :global "C-c l"
-    "t" #'i/claude-code-ide-toggle))
 
 
 

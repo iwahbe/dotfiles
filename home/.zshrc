@@ -164,10 +164,7 @@ if exe_exists mise; then
 fi
 
 # Terminal side configuration for libvterm.
-#
-# This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
-# and this works by appending to it.
-if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
+if [[ -v EMACS_SOCKET_NAME ]]; then
     # When we are inside Emacs, we don't want to open Emacs again, since it is hard to
     # exit the inner Emacs without quitting the terminal emulator or the outer Emacs
     # instance.
@@ -184,6 +181,11 @@ if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
     #	$ git commit
     #
     export EDITOR='emacsclient --quiet'
+fi
+
+# This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
+# and this works by appending to it.
+if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
     local src="${EMACS_VTERM_PATH}etc/emacs-vterm-zsh.sh"
     if [[ -f "$src" ]]; then
         source "$src"
@@ -192,6 +194,8 @@ if [[ "$INSIDE_EMACS" = 'vterm' ]]; then
     fi
 fi
 
+# This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
+# and this works by appending to it.
 [ -n "$EAT_SHELL_INTEGRATION_DIR" ] && \
   source "$EAT_SHELL_INTEGRATION_DIR/zsh"
 

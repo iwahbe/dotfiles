@@ -2,3 +2,4 @@
 go.work // Go work files are dev tools, and should not be checked in.
 **/.dir-locals.el
 .aider*
+.claude/

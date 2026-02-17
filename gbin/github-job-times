@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+#
+# github-job-times - Extract job names and durations from a GitHub Actions run
+#
+# Usage: github-job-times <URL>
+#
+# Accepts URLs in these formats:
+#   - https://github.com/OWNER/REPO/actions/runs/RUN_ID
+#   - https://github.com/OWNER/REPO/actions/runs/RUN_ID/job/JOB_ID
+#   - https://github.com/OWNER/REPO/actions/runs/RUN_ID/job/JOB_ID?pr=123
+#   - https://github.com/OWNER/REPO/pull/PR/checks (fetches all runs for PR)
+#
+# Output format: <job_name>\t<seconds>
+# Sorted by duration descending (slowest first)
+#
+# Requirements: gh (GitHub CLI), jq
+#
+# Examples:
+#   github-job-times https://github.com/pulumi/pulumi/actions/runs/21451441579
+#   github-job-times "https://github.com/pulumi/pulumi/actions/runs/21451441579/job/61781861022?pr=21593"
+#   github-job-times https://github.com/pulumi/pulumi/actions/runs/21451441579 | sort -t$'\t' -k2 -n
+#   github-job-times https://github.com/pulumi/pulumi/actions/runs/21451441579 | head -10
+
+set -euo pipefail
+
+usage() {
+    sed -n '3,16p' "$0" | sed 's/^# \?//'
+    exit 1
+}
+
+# Check dependencies
+for cmd in gh jq; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo "Error: $cmd is required but not installed." >&2
+        exit 1
+    fi
+done
+
+# Parse URL
+parse_url() {
+    local url="$1"
+
+    # Remove query string for parsing
+    local clean_url="${url%%\?*}"
+
+    # Extract owner/repo and run_id from various URL formats
+    if [[ "$clean_url" =~ github\.com/([^/]+)/([^/]+)/actions/runs/([0-9]+) ]]; then
+        OWNER="${BASH_REMATCH[1]}"
+        REPO="${BASH_REMATCH[2]}"
+        RUN_ID="${BASH_REMATCH[3]}"
+    elif [[ "$clean_url" =~ github\.com/([^/]+)/([^/]+)/pull/([0-9]+)/checks ]]; then
+        # PR checks URL - we'd need to fetch the check runs, but that's more complex
+        echo "Error: PR checks URLs not yet supported. Use a specific run URL." >&2
+        exit 1
+    else
+        echo "Error: Could not parse URL: $url" >&2
+        echo "Expected format: https://github.com/OWNER/REPO/actions/runs/RUN_ID" >&2
+        exit 1
+    fi
+}
+
+# Convert ISO 8601 duration or calculate from timestamps
+calc_duration_seconds() {
+    local started_at="$1"
+    local completed_at="$2"
+
+    if [[ -z "$started_at" || -z "$completed_at" || "$started_at" == "null" || "$completed_at" == "null" ]]; then
+        echo "0"
+        return
+    fi
+
+    # Convert ISO timestamps to epoch seconds and calculate difference
+    local start_epoch end_epoch
+    start_epoch=$(date -d "$started_at" +%s 2>/dev/null || gdate -d "$started_at" +%s 2>/dev/null || echo "0")
+    end_epoch=$(date -d "$completed_at" +%s 2>/dev/null || gdate -d "$completed_at" +%s 2>/dev/null || echo "0")
+
+    if [[ "$start_epoch" -eq 0 || "$end_epoch" -eq 0 ]]; then
+        echo "0"
+        return
+    fi
+
+    echo $((end_epoch - start_epoch))
+}
+
+# Fetch and process jobs
+fetch_jobs() {
+    local owner="$1"
+    local repo="$2"
+    local run_id="$3"
+
+    # Use gh api to fetch all jobs for the run (handles pagination)
+    gh api --paginate "/repos/${owner}/${repo}/actions/runs/${run_id}/jobs" \
+        --jq '.jobs[] | [.name, .started_at, .completed_at, .status, .conclusion] | @tsv' \
+    | while IFS=$'\t' read -r name started_at completed_at status conclusion; do
+        # Skip jobs that haven't completed
+        if [[ "$status" != "completed" ]]; then
+            continue
+        fi
+
+        # Calculate duration
+        local duration
+        duration=$(calc_duration_seconds "$started_at" "$completed_at")
+
+        # Output: name<tab>seconds
+        printf '%s\t%s\n' "$name" "$duration"
+    done
+}
+
+# Main
+main() {
+    if [[ $# -lt 1 ]]; then
+        usage
+    fi
+
+    local url="$1"
+
+    parse_url "$url"
+
+    # Fetch jobs and sort by duration (descending)
+    fetch_jobs "$OWNER" "$REPO" "$RUN_ID" | sort -t$'\t' -k2 -rn
+}
+
+main "$@"
