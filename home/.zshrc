@@ -196,8 +196,9 @@ fi
 
 # This needs to run after `starship init zsh` to work, since starship overwrites $PROMPT,
 # and this works by appending to it.
-[ -n "$EAT_SHELL_INTEGRATION_DIR" ] && \
-  source "$EAT_SHELL_INTEGRATION_DIR/zsh"
+if [[ -n "$EAT_SHELL_INTEGRATION_DIR" ]]; then
+    source "$EAT_SHELL_INTEGRATION_DIR/zsh"
+fi
 
 # Setup syntax highlighting for zsh.
 local highlighting="$_zsh_cache/zsh-syntax-highlighting"
