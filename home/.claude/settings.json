@@ -2,15 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "50000"
-  },
-  "spinnerVerbs": {
-    "mode": "replace",
-    "verbs": [
-      "Fucking around",
-      "Finding out",
-      "Don't ask questions"
-    ]
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "50000",
+    "CLAUDE_CODE_NO_FLICKER": "1"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
@@ -104,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "osascript -e 'display notification \"Claude has finished and is waiting for input\" with title \"Claude Code\" sound name \"Glass\"'"
+            "command": "command -v osascript >/dev/null 2>&1 && osascript -e 'display notification \"Claude has finished and is waiting for input\" with title \"Claude Code\" sound name \"Glass\"'"
           }
         ]
       }
@@ -115,7 +108,34 @@
     "typescript-lsp@claude-plugins-official": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "csharp-lsp@claude-plugins-official": true
+    "csharp-lsp@claude-plugins-official": true,
+    "engineering@pulumi-internal": true,
+    "swift-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "pulumi-internal": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/pulumi/pulumi-skills-internal.git"
+      }
+    }
+  },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Moses and Jesus are playing golf",
+      "Moses steps up to the tee and hits a beautiful shot 250 yards",
+      "straight down the middle of the fairway",
+      "Jesus steps up to the tee and hits the ball into the trees",
+      "Jesus looks up into the heavens, raises his arms",
+      "suddenly the sky darkens, a thunderclap rings out, rain pours down",
+      "and a stream rises among the trees, the golf ball floating on top",
+      "finds its way into the mouth of a fish",
+      "then a bird flies down and takes the fish and the ball out over the green",
+      "drops it in the cup for a hole in one",
+      "Jesus turns to Moses with a satisfied grin",
+      "And Moses says \"look, you want to play golf or you want to fuck around\""
+    ]
   },
   "feedbackSurveyState": {
     "lastShownTime": 1754156839358

@@ -486,8 +486,7 @@ Other currently loaded themes are disabled."
   ;; Disable previous themes
   (mapc #'disable-theme (cdr custom-enabled-themes)))
 
-(elpaca (moe-theme :host github :repo "iwahbe/moe-theme.el" :ref "iwahbe/lexical-binding"
-                   :remotes ("kuanyui" :repo "kuanyui/moe-theme.el"))
+(elpaca (moe-theme :host github :repo "kuanyui/moe-theme.el")
   (setq i/default-themes '((light . moe-light)
                            (dark  . moe-dark))))
 
@@ -1081,6 +1080,11 @@ ARG is passed directly to `magit-patch-save'."
       (delete-file fname)
       (kill-new
        (buffer-substring (point-min) (point-max))))))
+
+(elpaca (magit-cr :host github :repo "iwahbe/magit-cr")
+  (with-eval-after-load 'magit
+    (require 'magit-cr)
+    (define-key magit-mode-map (kbd "C-c r") magit-cr-map)))
 
 (elpaca magit
   (with-eval-after-load 'magit
@@ -1843,6 +1847,13 @@ to have a custom comment insertion function."
 (add-hook 'coq-mode-hook (lambda () (set
                                      (make-local-variable 'font-lock-comment-face)
                                      'i/font-lock-variable-pitch-comment-face)))
+
+
+
+;;; hcl-mode
+
+(elpaca hcl-mode)
+(add-to-list 'auto-mode-alist '("\\.pp\\'" . hcl-mode))
 
 
 

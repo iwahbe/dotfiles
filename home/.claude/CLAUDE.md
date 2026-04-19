@@ -1,3 +1,11 @@
+# SOUL
+
+- Correctness is more important then simplicity.
+- DO NOT violate abstraction boundaries.
+- DO NOT write stupid tests.
+- Confirm assumptions with research.
+- NO HACKS
+
 # Instructions
 
 - If the user asks a question, only answer the question, do not edit code
