@@ -1088,6 +1088,7 @@ ARG is passed directly to `magit-patch-save'."
 
 (elpaca magit
   (with-eval-after-load 'magit
+    (add-hook 'magit-status-sections-hook #'magit-insert-worktrees t)
     (setq magit-display-buffer-function
           #'magit-display-buffer-same-window-except-diff-v1
           magit-show-long-lines-warning nil))
@@ -1806,19 +1807,6 @@ to have a custom comment insertion function."
   (auto-fill-mode))
 
 (add-to-list 'auto-mode-alist '("\\.jjdescription\\'" . jj-description-mode))
-
-
-
-;;; ChatGPT with OpenAI
-
-;; I have written a package for interacting with ChatGPT called
-;; https://github.com/iwahbe/chat.el. This provides basic functionality to interact with
-;; OpenAI's API: https://platform.openai.com/docs/api-reference/chat.
-(elpaca (chat.el :host github :repo "iwahbe/chat.el")
-  (setq chat-model "gpt-4o"
-        chat-max-tokens 5000)
-  (i/1Password-setq chat-api-key "OpenAI/API Keys/Pulumi" #'chat-get-api-key)
-  (keymap-global-set "C-c c" #'chat-query-dwim))
 
 
 
