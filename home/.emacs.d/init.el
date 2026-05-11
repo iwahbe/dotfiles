@@ -1460,6 +1460,8 @@ Unlike `i/org-global-map', these keys are only accessible in an
               (i/server-ensure)
               (make-local-variable 'process-environment)
               (push (concat "EMACS_SOCKET_NAME=" server-name) process-environment)))
+  (require 'claudes)
+  (claudes-setup-eat)
   (setq eat-kill-buffer-on-exit t
         eat-enable-shell-prompt-annotation nil
         eat-enable-shell-command-history nil)

@@ -200,6 +200,17 @@ if [[ -n "$EAT_SHELL_INTEGRATION_DIR" ]]; then
     source "$EAT_SHELL_INTEGRATION_DIR/zsh"
 fi
 
+# `claudes.el' (in ~/.emacs.d/lisp) exports CLAUDE_HOOKS_JSON inside
+# eat buffers so it can track every Claude Code session run there.
+# Forward the JSON to `claude' via process substitution so the hooks
+# fire without writing anything to ~/.claude/settings.json. Existing
+# user-level hooks still fire -- Claude merges both sets.
+if [[ -n "$CLAUDE_HOOKS_JSON" ]]; then
+    claude() {
+        command claude --settings "$CLAUDE_HOOKS_JSON" "$@"
+    }
+fi
+
 # Setup syntax highlighting for zsh.
 local highlighting="$_zsh_cache/zsh-syntax-highlighting"
 if ! [[ -d "$highlighting" ]]; then
