@@ -112,6 +112,12 @@ shell-function snippet."
   "Map of Claude session-id (string) to a plist.
 Keys: :status :cwd :buffer :title :started.")
 
+(defvar-local claudes--anchored-worktree nil
+  "Path of a git worktree this buffer was launched into.
+Set by `claudes-new-worktree-session' via `claudes--launch'.  When the
+buffer is killed, the user is offered the chance to delete the
+worktree (see `claudes--maybe-offer-worktree-delete').")
+
 ;;;; Internal: state mutation -----------------------------------------------
 
 (defun claudes--upsert (session-id status cwd buffer title)
@@ -340,14 +346,16 @@ Press RET on a row to jump to the buffer that owns the session."
       (tabulated-list-print))
     (switch-to-buffer buf)))
 
-(defun claudes--launch (dir initial-prompt)
+(defun claudes--launch (dir initial-prompt &optional worktree)
   "Open a fresh `eat' buffer running `claude' in DIR.
 Always creates a new buffer (auto-numbered if the name is in use), so
 existing claude sessions are never disturbed.  If INITIAL-PROMPT is
-non-nil and non-empty, pass it as `claude's initial query.  Hooks are
-wired up by passing the snippet returned by `claudes-settings-snippet'
-through claude's `--settings' flag, so this works even though no shell
-is involved."
+non-nil and non-empty, pass it as `claude's initial query.  When
+WORKTREE is non-nil, tag the buffer with `claudes--anchored-worktree'
+so the user is offered the chance to delete it when the session ends.
+Hooks are wired up by passing the snippet returned by
+`claudes-settings-snippet' through claude's `--settings' flag, so this
+works even though no shell is involved."
   (let* ((default-directory (file-name-as-directory dir))
          (claude (or (executable-find "claude")
                      (user-error "`claude' not found on PATH")))
@@ -357,7 +365,10 @@ is involved."
                        (and initial-prompt
                             (not (string-empty-p initial-prompt))
                             (list initial-prompt)))))
-    (with-current-buffer buf (eat-mode))
+    (with-current-buffer buf
+      (eat-mode)
+      (when worktree
+        (setq-local claudes--anchored-worktree worktree)))
     (eat-exec buf (buffer-name buf) claude nil args)
     (switch-to-buffer buf)))
 
@@ -403,7 +414,7 @@ as the initial query."
               (project-remember-project proj)
             (message "claudes: %s not detected as a project; not remembered"
                      path))
-          (claudes--launch path initial-prompt)))))))
+          (claudes--launch path initial-prompt path)))))))
 
 (defun claudes-sessions-jump ()
   "Switch to the buffer owning the session at point in the current window."
@@ -444,7 +455,24 @@ Sets `process-environment' buffer-locally so the shell `eat' or
                              claudes-hooks-env-var
                              (claudes-settings-snippet)))
                process-environment))
+  (add-hook 'kill-buffer-hook #'claudes--maybe-offer-worktree-delete nil t)
   (add-hook 'kill-buffer-hook #'claudes--forget-buffer-sessions nil t))
+
+(defun claudes--maybe-offer-worktree-delete ()
+  "Kill-buffer-hook: prompt to delete `claudes--anchored-worktree'.
+Runs in the buffer being killed.  Only acts when the buffer-local
+`claudes--anchored-worktree' names a directory that still exists.  On
+`y' answer, calls `magit-worktree-delete' (which performs its own
+confirmation).  Failure to delete is left to magit to report -- this
+hook does not block the buffer kill."
+  (when (and claudes--anchored-worktree
+             (file-directory-p claudes--anchored-worktree)
+             (y-or-n-p (format "Delete worktree %s? "
+                               (abbreviate-file-name
+                                claudes--anchored-worktree))))
+    (let* ((wt claudes--anchored-worktree)
+           (default-directory wt))
+      (magit-worktree-delete wt))))
 
 (defun claudes--forget-buffer-sessions ()
   "Remove tracker entries whose :buffer is the current buffer."

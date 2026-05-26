@@ -1953,28 +1953,38 @@ DEPTH specifies how many levels to search through."
 ;; implementation, which is then queried asynchronously to find the correct path.
 
 (defun i/set-exec-path-from-shell ()
-  "Attempt to set the variable `exec-path' from $SHELL's $PATH."
-  (let* ((b (get-buffer-create "discover-exec-path" t))
-         (p (start-process "discover-exec-path" b shell-file-name shell-command-switch "echo $PATH")))
-    (set-process-sentinel p (lambda (_ event)
-                              (when (equal event "finished\n")
-                                ;; If we have discovered a path, set it.
-                                (if-let ((found (string-split
-                                                 (with-current-buffer b (buffer-string))
-                                                 ":" t "\n")))
-                                    (progn
-                                      (setq exec-path (append found (list exec-directory)))
-                                      ;; Now that we have discovered `$PATH' from the
-                                      ;; shell, propagate it back to Emacs's PATH for
-                                      ;; subsidiary processes (like LSP servers) to use.
-                                      (setenv "PATH" (string-join exec-path ":")))
-                                  (message "Failed to discover exec-path"))
-                                ;; Regardless of if we have discovered a path, kill the
-                                ;; buffer. We won't get another chance here.
-                                (kill-buffer b))))
-    (set-process-query-on-exit-flag p nil)))
+  "Set `exec-path' and $PATH from $SHELL's $PATH, asynchronously."
+  (let* ((buf (generate-new-buffer " *discover-exec-path*" t))
+         (err (generate-new-buffer " *discover-exec-path-err*" t))
+         (proc (make-process
+                :name "discover-exec-path"
+                :buffer buf
+                :stderr err
+                :noquery t
+                :connection-type 'pipe
+                :command (list shell-file-name "-l" "-i" shell-command-switch
+                               "printf %s \"$PATH\"")
+                :sentinel
+                (lambda (p _event)
+                  (unwind-protect
+                      (when (eq (process-status p) 'exit)
+                        (if (zerop (process-exit-status p))
+                            (let* ((raw (with-current-buffer buf (buffer-string)))
+                                   (parts (split-string raw ":" t "[ \t\n\r]+")))
+                              (if parts
+                                  (progn
+                                    (setq exec-path
+                                          (delete-dups
+                                           (append parts (list exec-directory))))
+                                    (setenv "PATH" (string-join exec-path ":")))
+                                (message "discover-exec-path: empty PATH")))
+                          (message "discover-exec-path failed (%d): %s"
+                                   (process-exit-status p)
+                                   (with-current-buffer err (buffer-string))))))
+                  (when (buffer-live-p buf) (kill-buffer buf))
+                  (when (buffer-live-p err) (kill-buffer err))))))))
 
-(i/set-exec-path-from-shell)
+(elpaca-queue (i/set-exec-path-from-shell))
 
 ;;; Alter
 ;;
