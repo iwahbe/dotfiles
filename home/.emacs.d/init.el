@@ -703,12 +703,6 @@ The name depends on the current project & NAME-OF-MODE."
 
 
 
-;; Copilot
-
-(elpaca (copilot :host github :repo "copilot-emacs/copilot.el" :files ("dist" "*.el"))
-  (with-eval-after-load 'copilot
-    (add-to-list 'copilot-major-mode-alist '("jsonian" . "json"))))
-
 ;;; Consult
 
 ;; https://github.com/minad/consult is a utility package that provides a boat load of
