@@ -1674,9 +1674,15 @@ The opening \" should be after START and the closing \" should be before END."
 ;; `typescript-ts-mode'.
 
 ;; As of Emacs 30.0.50, typescript-ts-mode.el contains these lines:
-(require 'treesit)
-(if (treesit-ready-p 'typescript)
-    (add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-ts-mode)))
+(defun i/typescript-mode ()
+  (require 'treesit)
+  (if (treesit-ready-p 'typescript)
+      (typescript-ts-mode)
+    (message "typescript-ts-mode not available")
+    (prog-mode)))
+
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . i/typescript-mode))
+
 ;; Unfortunately, it does not work in typescript-ts-mode.el because the check is not
 ;; auto-loaded, so its not loaded until after a function from [[help:featurep][feature]]
 ;; `typescript-ts-mode' is loaded. By including the above directly in our init file, we
@@ -1694,8 +1700,13 @@ The opening \" should be after START and the closing \" should be before END."
 
 ;;; Major Modes: `python-mode'
 
-(if (treesit-ready-p 'python)
-    (add-to-list 'auto-mode-alist '("\\.py\\'" . python-ts-mode)))
+(defun i/python-mode ()
+  (require 'treesit)
+  (if (treesit-ready-p 'python)
+      (python-ts-mode)
+    (python-mode)))
+
+(add-to-list 'auto-mode-alist '("\\.py\\'" . i/python-mode))
 
 (i/lsp-declare (python-mode python-ts-mode) :program ("uvx" "ty" "server"))
 
