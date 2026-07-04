@@ -555,7 +555,7 @@ Other currently loaded themes are disabled."
 
 ;; Since the package is unmaintained, I use hlissner's (of Doom Emacs fame) fork, on the
 ;; grounds that since it is used by a popular distribution, it will probably work.
-(elpaca (ws-butler :host github :repo "hlissner/ws-butler")
+(elpaca (ws-butler :host github :repo "lewang/ws-butler" :branch "master")
   ;; It is enabled everywhere.
   (ws-butler-global-mode))
 
@@ -830,9 +830,13 @@ This command reads the abbreviation from the minibuffer."
 
 ;;; Emacs as a Server
 
-;; Ensure that each instance of Emacs has a unique server name.
+;; Ensure that each interactive instance of Emacs has a unique server name.
+;; Daemons keep the default name: `emacsclient -a ''` only looks for the
+;; "server" socket, so renaming a daemon's server orphans it and every
+;; subsequent client launch spawns another daemon.
 (with-eval-after-load 'server
-  (when (equal server-name "server")
+  (when (and (not (daemonp))
+             (equal server-name "server"))
     (setq server-name (format "server-%s" (emacs-pid)))))
 
 (defun i/server-ensure ()
@@ -1525,7 +1529,8 @@ The opening \" should be after START and the closing \" should be before END."
       (insert-char ?`))))
 
 (elpaca (testrun :host github :repo "iwahbe/testrun.el"
-                 :remotes ("t0yv0" :repo "t0yv0/testrun.el"))
+                 :remotes (("iwahbe" :repo "iwahbe/testrun.el")
+                           ("t0yv0" :repo "t0yv0/testrun.el")))
   (setq testrun--go-verbose t))
 
 

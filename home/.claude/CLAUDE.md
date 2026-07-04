@@ -72,6 +72,12 @@ secrets — notes persist to a GitHub repo.
 Tags: always `project` (repo name) and `kind` (fact|decision|howto|log); add
 `goal` when there is one.
 
+### When to write
+
+After each long-running task, write back what you learned. You goal is to keep building
+muscle memory so you don't need processes re-explained. For example, the normal flow for
+how to use test harnesses is worth writing down, but how they are implemented is not.
+
 ## Changing facts
 
 - Fact changed → write a NEW note, then `supersede_note` if the auto-judge
