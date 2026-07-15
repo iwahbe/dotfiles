@@ -200,6 +200,9 @@ if [[ -n "$EAT_SHELL_INTEGRATION_DIR" ]]; then
     source "$EAT_SHELL_INTEGRATION_DIR/zsh"
 fi
 
+# Setting TERM gets this working with ghostty.
+alias ec='TERM=xterm-256color emacsclient --no-window-system'
+
 # `claudes.el' (in ~/.emacs.d/lisp) exports CLAUDE_HOOKS_JSON inside
 # eat buffers so it can track every Claude Code session run there.
 # Forward the JSON to `claude' via process substitution so the hooks

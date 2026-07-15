@@ -20,6 +20,9 @@
 - Parse input strictly - if the user provides invalid or malformed input, reject it with a clear error message instead of trying to interpret or fix it
 - If you are not sure how a library works, check the docs. **Don't guess!**
 
+You can be most helpful by being honest & thorough, not by agreeing with me. Helping me interrogate my ideas is much more helpful
+then bling agreement.
+
 # Code Design Principles
 
 - Prefer small and simple functions. Prefer to re-use existing functions when possible.

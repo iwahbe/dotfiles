@@ -845,6 +845,36 @@ This command reads the abbreviation from the minibuffer."
   (unless server-process
     (server-start)))
 
+;; A daemon launched from Emacs.app registers with LaunchServices as *the*
+;; running instance of org.gnu.Emacs, so clicking Emacs.app in the Dock or
+;; Finder never launches a new Emacs -- it only sends the daemon a "reopen"
+;; event.  The NS port does not handle that event; AppKit's default response
+;; is to un-hide the application, which shows nothing unless a window exists.
+;; So: when the daemon's last GUI frame is about to be deleted, create a
+;; replacement frame and hide the application.  Clicking Emacs.app then
+;; un-hides the app and the replacement frame appears.
+(defun i/ns-keep-frame-on-delete (frame)
+  "Replace FRAME with a hidden frame when it is the daemon's last NS frame."
+  (when (and (daemonp)
+             (eq (window-system frame) 'ns)
+             (not (seq-some (lambda (f)
+                              (and (not (eq f frame))
+                                   (eq (window-system f) 'ns)))
+                            (frame-list))))
+    ;; Hiding the app while FRAME still owns a fullscreen Space wedges the
+    ;; animation; drop out of fullscreen and let macOS finish first.
+    (when (frame-parameter frame 'fullscreen)
+      (set-frame-parameter frame 'fullscreen nil)
+      (sit-for 1.5))
+    (with-selected-frame (make-frame '((window-system . ns)))
+      (switch-to-buffer "*scratch*"))
+    (ns-hide-emacs t)))
+
+;; Guard on `system-type': in a daemon the `window-system' variable is nil at
+;; init time, but NS frames are exactly what it will create later.
+(when (eq system-type 'darwin)
+  (add-hook 'delete-frame-functions #'i/ns-keep-frame-on-delete))
+
 
 
 ;;; Language Server Protocol (LSP)

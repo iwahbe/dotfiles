@@ -382,39 +382,77 @@ initial query."
                        (read-string "Initial claude prompt: "))))
   (claudes--launch (project-prompt-project-dir) initial-prompt))
 
+(defun claudes--primary-git-repo-p (root)
+  "Return non-nil if ROOT is the main worktree of a git repository.
+A git repository's main worktree has a `.git' directory, while linked
+worktrees have a `.git' file pointing into it."
+  (file-directory-p (expand-file-name ".git" root)))
+
+(defun claudes--prompt-primary-project-dir ()
+  "Like `project-prompt-project-dir', but only offer primary git repos.
+Known projects that are linked worktrees, or not git repositories at
+all, are omitted from completion."
+  (project--ensure-read-project-list)
+  (let ((project--list (seq-filter (lambda (entry)
+                                     (claudes--primary-git-repo-p (car entry)))
+                                   project--list)))
+    (project-prompt-project-dir)))
+
+(defun claudes--read-worktree-args ()
+  "Read arguments for a new worktree: a branch, then a start point if new.
+Prompt for a BRANCH, offering existing branches for completion but
+accepting arbitrary input.  An existing branch is checked out as-is; a
+new name additionally prompts for a START point to create it at.
+Return a list (BRANCH START EXISTING): when EXISTING is non-nil, BRANCH
+already names a branch and START is nil; otherwise BRANCH is created at
+START."
+  (let* ((branch (magit-completing-read
+                  "Branch for worktree (existing to check out, or new to create)"
+                  (magit-list-branch-names)
+                  nil 'any nil 'magit-revision-history))
+         (existing (magit-branch-p branch))
+         (start (unless existing
+                  (magit-read-starting-point
+                   (format "Create %s" branch) branch
+                   (magit-get-current-branch)))))
+    (list branch start existing)))
+
 ;;;###autoload
 (defun claudes-new-worktree-session (&optional initial-prompt)
-  "Create a git worktree via `magit-worktree-branch' and `claude' inside it.
+  "Create a git worktree and start a `claude' session inside it.
 
-Prompts for a source project with `project-prompt-project-dir', then
-delegates the path / branch / start-point prompts to magit.  After the
-worktree exists, the new directory is registered with `project.el' and
-a `claude' session is launched there.
+Prompts for a source project (primary git repos only, so linked
+worktrees are omitted), then for a branch and a directory.  The branch
+prompt offers existing
+branches for completion: an existing branch is checked out as is, while
+a new name additionally prompts for a start point and is created there.
+The new directory is registered with `project.el' and a `claude'
+session is launched there.
 
 With prefix argument, prompt for INITIAL-PROMPT and pass it to `claude'
 as the initial query."
   (interactive (list (when current-prefix-arg
                        (read-string "Initial claude prompt: "))))
-  (let* ((src (project-prompt-project-dir))
+  (let* ((src (claudes--prompt-primary-project-dir))
          (default-directory (file-name-as-directory src))
-         (before (mapcar #'car (magit-list-worktrees))))
-    (call-interactively #'magit-worktree-branch)
-    (let* ((after (mapcar #'car (magit-list-worktrees)))
-           (new (cl-set-difference after before :test #'equal)))
-      (cond
-       ((null new)
-        (user-error "No new worktree was created"))
-       ((cdr new)
-        (user-error "Multiple new worktrees found -- can't disambiguate: %S"
-                    new))
-       (t
-        (let* ((path (file-name-as-directory (car new)))
-               (proj (project-current nil path)))
-          (if proj
-              (project-remember-project proj)
-            (message "claudes: %s not detected as a project; not remembered"
-                     path))
-          (claudes--launch path initial-prompt path)))))))
+         (args (claudes--read-worktree-args))
+         (branch (nth 0 args))
+         (start (nth 1 args))
+         (existing (nth 2 args))
+         (dir (magit--read-worktree-directory
+               branch (if existing (magit-local-branch-p branch) t)))
+         (gitdir (magit--expand-worktree dir))
+         (path (file-name-as-directory (expand-file-name dir))))
+    (unless (zerop (if existing
+                       (magit-run-git "worktree" "add" gitdir branch)
+                     (magit-run-git "worktree" "add" "-b" branch gitdir start)))
+      (user-error "git worktree add failed"))
+    (let ((proj (project-current nil path)))
+      (if proj
+          (project-remember-project proj)
+        (message "claudes: %s not detected as a project; not remembered"
+                 path)))
+    (claudes--launch path initial-prompt path)))
 
 (defun claudes-sessions-jump ()
   "Switch to the buffer owning the session at point in the current window."
