@@ -152,6 +152,10 @@ if exe_exists starship; then
     eval "$(starship init zsh)"
 fi
 
+if exe_exists git-spice; then
+    alias gs=git-spice
+fi
+
 if exe_exists atuin; then
     # Note: This generates the config file ($HOME/.config/atuin/config.toml) when
     # run. AFAIK, this behavior cannot be ignored. I have opened

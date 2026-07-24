@@ -1,0 +1,41 @@
+{
+  "pulumi/pulumi-java": {
+    "language-test-path": "pkg/cmd/pulumi-language-java/language_test.go (expectedFailures map near the bottom of the file, after TestLanguage)",
+    "snapshot-dir": "pkg/cmd/pulumi-language-java/testdata/",
+    "pinned-dep": "Two halves, usually two commits on the renovate branch: (1) the `pulumi` git submodule + .gitmodules, (2) `github.com/pulumi/pulumi/{pkg,sdk}/v3` in the root `go.mod`/`go.sum`. There is ONE Go module, rooted at the repo root — there is no pkg/go.mod or tests/go.mod, and `sdk/go.mod` is a `module phony` stub that only keeps sdk/ out of `go mod download`. Run `mise exec -- make tidy` after touching go.mod.",
+    "build-cmd": "mise exec -- make build_go",
+    "lint-cmd": "mise exec -- make lint",
+    "test-cmd": "cd pkg && go test ./cmd/pulumi-language-java/ -run 'TestLanguage/<test-name>' -count 1  (full suite: `mise exec -- make test_go`)",
+    "accept-cmd": "cd pkg && PULUMI_ACCEPT=1 go test ./cmd/pulumi-language-java/ -run 'TestLanguage/<test-name>' -count 1",
+    "codegen-tests": "mise exec -- make codegen_tests ; accept with `mise exec -- make codegen_tests_update` (PULUMI_ACCEPT=true under pkg/codegen/java)",
+    "ci-jobs": "ci.yml jobs: prerequisites, java-sdk-tests, go-tests (runs `cd pkg && go test -timeout 40m ./...` — this is the conformance job), examples, go-lint, ci-ok. `examples` needs cloud creds and is skipped on forks.",
+    "changelog-cmd": "mise exec -- make changelog (changie). Dependency bumps are usually `impact/no-changelog-required`.",
+    "gotchas": "Conformance tests need the core SDK published to Maven Local at version 0.0.1: `cd sdk/java && mise exec -- gradle publishToMavenLocal` with PULUMI_JAVA_SDK_VERSION=0.0.1. After editing sdk/java, delete ~/.m2/repository/com/pulumi/pulumi/0.0.1 before re-running, or you test a stale SDK. Kill stray java/gradle processes before a run. Tests are t.Parallel and slow — run one test at a time while diagnosing, not the whole suite."
+  },
+  "pulumi/pulumi-yaml": {
+    "language-test-path": "cmd/pulumi-language-yaml/language_test.go (expectedFailures map at ~line 101, above TestLanguage)",
+    "snapshot-dir": "cmd/pulumi-language-yaml/testdata/ (projects, eject-pcl, round-tripped-project, sdks)",
+    "pinned-dep": "github.com/pulumi/pulumi/{pkg,sdk}/v3 in the root go.mod — single Go module, no git submodule (dropped in #1143). Run `go mod tidy` after touching go.mod; move ./tmp aside first or tidy pollutes go.mod with indirect→direct promotions.",
+    "build-cmd": "make build",
+    "lint-cmd": "make lint",
+    "test-cmd": "go test -count 1 -run 'TestLanguage/<test-name>$' ./cmd/pulumi-language-yaml (fast suite: make test_short)",
+    "accept-cmd": "PULUMI_ACCEPT=true go test -count 1 -run 'TestLanguage/<test-name>$' ./cmd/pulumi-language-yaml",
+    "codegen-tests": "PULUMI_ACCEPT=true go test --run=TestGenerateExamples ./pkg/tests — then review diffs in pkg/tests/transpiled_examples/ (golden files, never hand-edit)",
+    "ci-jobs": "pr-tests.yaml dispatches stage-lint.yml (Lint) and stage-test.yml (Test, matrix over go/python/dotnet/node). Schema-loading failures after a dep bump usually mean `make get_schemas`.",
+    "changelog-cmd": "changie new (components: codegen, docs, runtime, convert). Dependency bumps are usually impact/no-changelog-required.",
+    "gotchas": "utils.NewContext's built-in provider list gets trimmed upstream between releases — 'could not locate a compatible plugin' in codegen/example tests means switch to utils.NewContextWithProviders with the schemas from scripts/get_schemas.sh. Schema JSON in pkg/pulumiyaml/testing/test/testdata/ is downloaded, never hand-edited. Don't run the full integration suite locally; CI does."
+  },
+  "pulumi/pulumi-dotnet": {
+    "language-test-path": "pulumi-language-dotnet/language_test.go (expectedFailures map, ~line 97)",
+    "snapshot-dir": "pulumi-language-dotnet/testdata/",
+    "pinned-dep": "Three places pin pulumi/pulumi, all must match: (1) the `pulumi` git submodule + .gitmodules branch field, (2) github.com/pulumi/pulumi/{pkg,sdk}/v3 in pulumi-language-dotnet/go.mod, (3) same in integration_tests/go.mod. Run `go mod tidy` in each dir touched.",
+    "build-cmd": "mise exec -- make build",
+    "lint-cmd": "mise exec -- make lint",
+    "test-cmd": "mise exec -- make test_conformance TEST_FILTER=<test-name>",
+    "accept-cmd": "PULUMI_ACCEPT=1 mise exec -- make test_conformance TEST_FILTER=<test-name>",
+    "codegen-tests": "mise exec -- make test_codegen ; golden files in pulumi-language-dotnet/codegen/testdata/, accept with PULUMI_ACCEPT=1 make test_codegen",
+    "ci-jobs": "pr.yml (name: Build and test) jobs: setup_matrix, format, lint, lint-changelog, build, integration-tests, conformance-tests, codegen-tests, info, release-dev-sdk, check-pr",
+    "changelog-cmd": "make changelog (changie). Dependency bumps are usually impact/no-changelog-required.",
+    "gotchas": "All make test_* targets depend on `build` (full SDK + language host) — first run is slow. TEST_FILTER wires into gotestsum. Run `mise install` first to get pinned tool versions."
+  }
+}

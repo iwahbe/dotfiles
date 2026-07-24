@@ -510,7 +510,8 @@ hook does not block the buffer kill."
                                 claudes--anchored-worktree))))
     (let* ((wt claudes--anchored-worktree)
            (default-directory wt))
-      (magit-worktree-delete wt))))
+      (magit-worktree-delete wt)
+      (project-forget-project wt))))
 
 (defun claudes--forget-buffer-sessions ()
   "Remove tracker entries whose :buffer is the current buffer."
