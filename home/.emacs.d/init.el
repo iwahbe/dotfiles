@@ -1153,6 +1153,10 @@ Operate on the region defined by START to END."
  transient-values-file (expand-file-name "values.el" i/transient-cache-dir)
  transient-levels-file (expand-file-name "levels.el" i/transient-cache-dir))
 
+;; `ghprs' shows a dashboard of every open PR I have authored across all
+;; repos, with stacked PRs drawn as a tree and review/CI state at a glance.
+(autoload 'ghprs "ghprs" "Show a dashboard of all my open GitHub PRs." t)
+
 
 
 ;;; Major Modes: `org-mode'

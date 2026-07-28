@@ -25,7 +25,6 @@
       "Bash(dotnet nuget list:*)",
       "Bash(du -sh:*)",
       "Bash(echo:*)",
-      "Bash(export CLOUDFLARE_API_TOKEN=\"vhdQU_fKl1xAUYrT2SMlZBq7XVoXilHj4ijaizLp\")",
       "Bash(find:*)",
       "Bash(fold:*)",
       "Bash(for dir in ../../blog/*/)",
