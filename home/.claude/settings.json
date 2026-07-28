@@ -9,13 +9,14 @@
   "permissions": {
     "allow": [
       "Bash(cargo build:*)",
+      "Bash(cargo check:*)",
       "Bash(cargo init:*)",
       "Bash(cargo run:*)",
       "Bash(cargo search:*)",
       "Bash(cargo test:*)",
-      "Bash(cargo check:*)",
       "Bash(cargo update:*)",
       "Bash(cat:*)",
+      "Bash(cloudflared access login --quiet https://mcp.iwahbe.com)",
       "Bash(curl https://iwahbe-blog-demo.ian-221.workers.dev)",
       "Bash(curl:*)",
       "Bash(do if [ -f \"$dir/index.md\" ])",
@@ -86,10 +87,22 @@
       "WebSearch"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "auto"
   },
-  "model": "claude-opus-4-6",
+  "model": "fable",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/memory-recall.sh",
+            "timeout": 10,
+            "statusMessage": "Recalling memory"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",
@@ -97,6 +110,17 @@
           {
             "type": "command",
             "command": "command -v osascript >/dev/null 2>&1 && osascript -e 'display notification \"Claude has finished and is waiting for input\" with title \"Claude Code\" sound name \"Glass\"'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
           }
         ]
       }
@@ -109,13 +133,27 @@
     "pyright-lsp@claude-plugins-official": true,
     "csharp-lsp@claude-plugins-official": true,
     "engineering@pulumi-internal": true,
-    "swift-lsp@claude-plugins-official": true
+    "swift-lsp@claude-plugins-official": true,
+    "ponytail@ponytail": true,
+    "i@iwahbe": true
   },
   "extraKnownMarketplaces": {
     "pulumi-internal": {
       "source": {
         "source": "git",
         "url": "https://github.com/pulumi/pulumi-skills-internal.git"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "iwahbe": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/ianwahbe/Projects/dotfiles/claude-plugins"
       }
     }
   },
@@ -136,13 +174,12 @@
       "And Moses says \"look, you want to play golf or you want to fuck around\""
     ]
   },
+  "effortLevel": "high",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "skipAutoPermissionPrompt": true,
   "feedbackSurveyState": {
     "lastShownTime": 1754156839358
   },
-  "mcpServers": {
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/"
-    }
-  }
+  "mcpServers": {}
 }
