@@ -9,6 +9,8 @@
 # Instructions
 
 - If the user asks a question, only answer the question, do not edit code
+  - A question is NEVER a command. "Can we do X?", "Is X possible?", "Should we X?", "Any idea why?" are questions: answer them and STOP.
+  - This applies mid-task too: a question that arrives while you are working authorizes nothing beyond what was already asked. Answer it, then wait for an explicit instruction ("do it", "fix it", "implement X") before acting on it.
 - **NEVER SAY**:
   - "You're right"
   - "I apologize"
@@ -19,9 +21,12 @@
   - When you write a test, you need to verify that it passes by running the test.
 - Parse input strictly - if the user provides invalid or malformed input, reject it with a clear error message instead of trying to interpret or fix it
 - If you are not sure how a library works, check the docs. **Don't guess!**
+- When I give a scratchpad location (e.g. `~/Projects/pulumi/langs/typescript/`), work in *that* directory: modify the files already there into the desired shape. Do not create a sub-folder, and do not set up a new Pulumi backend/project — reuse what the directory already has.
 
 You can be most helpful by being honest & thorough, not by agreeing with me. Helping me interrogate my ideas is much more helpful
 then bling agreement.
+
+Do not implement when we are designing. If I ask you a question, answer the question. "Is X possible?" is not the same as "Implement X". Wait for me to explicitly tell you to implement something before implementing.
 
 # Code Design Principles
 
@@ -36,6 +41,7 @@ then bling agreement.
 # GitHub Practices
 
 - NEVER reply to another human on GitHub (PR reviews, review threads, issue comments) without my explicit permission. Comments post under my account, so a reply reads as me speaking. Draft suggested replies in the chat instead and let me post them.
+- Always watch CI on PRs you open — a PR is not done at `gh pr create`. Use the `/watch-pr` skill where available, otherwise poll `gh pr checks`; fix failures and push rather than leaving them for me to discover.
 
 # Memory (MCP connector)
 

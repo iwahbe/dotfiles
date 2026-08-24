@@ -47,8 +47,20 @@ Separate failures into three buckets and treat each differently:
   upgrade. See §4. These are *not* `expectedFailures` material.
 
 To tell "new test" from "regression": check whether the test name exists at
-the previously pinned version — `git log`/`git diff` the pinned dependency, or
-diff the upstream test list between the two versions. Do not classify by
+the previously pinned version. The conformance tests live in pulumi/pulumi at
+`pkg/testing/pulumi-test-language/{tests,providers}` (NOT
+`cmd/pulumi-test-language`). With a submodule (verified 2026-08 on
+pulumi-java):
+
+```sh
+cd pulumi
+git fetch origin tag v<old> tag v<new> --no-tags
+git diff --name-status v<old> v<new> -- pkg/testing/pulumi-test-language/
+```
+
+`A` = new test; `M` = read the upstream commit before accepting a snapshot
+diff (it may be a deliberate behavior change, e.g. pulumi/pulumi#24143).
+Without a submodule, diff the two versions in GOMODCACHE. Do not classify by
 vibes; a regression mislabelled as a new test silently ships a bug.
 
 ## 3. expectedFailures — accept snapshots FIRST

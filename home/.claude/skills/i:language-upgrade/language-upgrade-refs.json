@@ -25,17 +25,30 @@
     "changelog-cmd": "changie new (components: codegen, docs, runtime, convert). Dependency bumps are usually impact/no-changelog-required.",
     "gotchas": "utils.NewContext's built-in provider list gets trimmed upstream between releases — 'could not locate a compatible plugin' in codegen/example tests means switch to utils.NewContextWithProviders with the schemas from scripts/get_schemas.sh. Schema JSON in pkg/pulumiyaml/testing/test/testdata/ is downloaded, never hand-edited. Don't run the full integration suite locally; CI does."
   },
+  "pulumi/pulumi-hcl": {
+    "language-test-path": "cmd/pulumi-language-hcl/language_test.go (expectedFailures map at ~line 132)",
+    "snapshot-dir": "cmd/pulumi-language-hcl/testdata/",
+    "pinned-dep": "github.com/pulumi/pulumi/{pkg,sdk}/v3 in the root go.mod — single Go module, no git submodule. Run `make tidy` after touching go.mod.",
+    "build-cmd": "make build",
+    "lint-cmd": "make lint",
+    "test-cmd": "go test ./cmd/pulumi-language-hcl/ -run 'TestLanguage/<test-name>$' -count 1",
+    "accept-cmd": "PULUMI_ACCEPT=1 go test ./cmd/pulumi-language-hcl/ -run 'TestLanguage/<test-name>$' -count 1",
+    "codegen-tests": "none separate — conformance snapshots under cmd/pulumi-language-hcl/testdata/ are the golden files",
+    "ci-jobs": "ci.yml jobs: lint, test, codecov-notify, build-sdk, vendored-drift",
+    "changelog-cmd": "changie new (dependency bumps are usually impact/no-changelog-required)",
+    "gotchas": "Tests added to expectedFailures must have their testdata/{projects,round-tripped-project,eject-pcl}/<test-name> dirs git rm'd (shared sdks/ stay). PULUMI_ACCEPT still runs full validation — a passing accept run is real validation. The pulumi CLI on PATH is a real dependency for conformance runs."
+  },
   "pulumi/pulumi-dotnet": {
     "language-test-path": "pulumi-language-dotnet/language_test.go (expectedFailures map, ~line 97)",
     "snapshot-dir": "pulumi-language-dotnet/testdata/",
     "pinned-dep": "Three places pin pulumi/pulumi, all must match: (1) the `pulumi` git submodule + .gitmodules branch field, (2) github.com/pulumi/pulumi/{pkg,sdk}/v3 in pulumi-language-dotnet/go.mod, (3) same in integration_tests/go.mod. Run `go mod tidy` in each dir touched.",
     "build-cmd": "mise exec -- make build",
     "lint-cmd": "mise exec -- make lint",
-    "test-cmd": "mise exec -- make test_conformance TEST_FILTER=<test-name>",
+    "test-cmd": "mise exec -- make test_conformance TEST_FILTER=<test-name> — ONE test per invocation: the Makefile interpolates TEST_FILTER unquoted, so a regex with | breaks the shell line",
     "accept-cmd": "PULUMI_ACCEPT=1 mise exec -- make test_conformance TEST_FILTER=<test-name>",
     "codegen-tests": "mise exec -- make test_codegen ; golden files in pulumi-language-dotnet/codegen/testdata/, accept with PULUMI_ACCEPT=1 make test_codegen",
     "ci-jobs": "pr.yml (name: Build and test) jobs: setup_matrix, format, lint, lint-changelog, build, integration-tests, conformance-tests, codegen-tests, info, release-dev-sdk, check-pr",
     "changelog-cmd": "make changelog (changie). Dependency bumps are usually impact/no-changelog-required.",
-    "gotchas": "All make test_* targets depend on `build` (full SDK + language host) — first run is slow. TEST_FILTER wires into gotestsum. Run `mise install` first to get pinned tool versions."
+    "gotchas": "All make test_* targets depend on `build` (full SDK + language host) — first run is slow. TEST_FILTER wires into gotestsum. Run `mise install` first to get pinned tool versions. The `build` CI job runs `make test_automation_codegen` then a 'Workspace clean' check: if the upgrade changes CLI help text, run `mise exec -- make generate_automation_api` (spec comes from the submodule, no external CLI needed) then `make build_sdk`, and commit sdk/Pulumi.Automation/Commands/Options.cs + Pulumi.Automation.xml. The repo merges through the GitHub merge queue: `gh pr merge --squash --auto`, then the queue's own CI run takes ~30 min after checks go green — poll PR state, don't assume merged."
   }
 }
