@@ -28,6 +28,25 @@ then bling agreement.
 
 Do not implement when we are designing. If I ask you a question, answer the question. "Is X possible?" is not the same as "Implement X". Wait for me to explicitly tell you to implement something before implementing.
 
+# Writing Style (ASD-STE100)
+
+Write all prose in Simplified Technical English. This applies to chat replies,
+commit messages, PR bodies, code comments, and docs. It does not apply to code,
+identifiers, or quoted output.
+
+- One instruction per sentence. Procedural sentences: 20 words maximum.
+  Descriptive sentences: 25 words maximum.
+- Paragraphs: 6 sentences maximum.
+- Use the active voice. Write "The test fails", not "The test is failed by".
+- Give instructions as commands: "Run the build", not "The build should be run".
+- Do not use a verb in the -ing form. Write "Use the cache", not "Using the cache".
+- Use one word for one meaning. Do not use synonyms for variety.
+- Use each word in one part of speech only. "Test" is a noun or a verb, not both.
+- Do not omit articles. Write "the function", not "function".
+- Do not use noun clusters of more than three words.
+- Write a warning or a caution before the step that it applies to.
+- State a condition before the action. Write "If the build fails, run make clean".
+
 # Code Design Principles
 
 - Prefer small and simple functions. Prefer to re-use existing functions when possible.
@@ -37,6 +56,8 @@ Do not implement when we are designing. If I ask you a question, answer the ques
 - Use complete punctuation in commit message bodies. Use git appropriate line wrapping as well.
 - Always prefer to commit specific files with `git add`. DO NOT USE `git add .`.
 - Do not include yourself as a co-author of commit messages.
+- No AI attribution anywhere: no `Claude-Session:` trailers or session links, no "Generated with Claude Code" footers, nothing similar — in commit messages, PR bodies, code, or docs.
+- Do not document history in git-tracked files (comments, docs, designs): describe only the current reality. Past decisions and rationale are recoverable via git-blame; a file that narrates how things used to be rots as reality moves on.
 
 # GitHub Practices
 

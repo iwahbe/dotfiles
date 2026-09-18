@@ -58,6 +58,7 @@ fi
 if [[ -d "$HOME/.pulumi/bin" ]]; then
     add_to_path "$HOME/.pulumi/bin"
     export PULUMI_SUPPRESS_COPILOT_LINK=true
+    export PULUMI_CREDENTIAL_STORE=os
 fi
 
 if exe_exists "$HOME/.bun/bin/bun"; then

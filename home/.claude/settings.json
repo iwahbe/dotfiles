@@ -5,10 +5,10 @@
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "50000",
     "CLAUDE_CODE_NO_FLICKER": "1"
   },
-  "includeCoAuthoredBy": false,
   "attribution": {
     "sessionUrl": false
   },
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Bash(cargo build:*)",
@@ -180,6 +180,7 @@
   "effortLevel": "high",
   "skipWorkflowUsageWarning": true,
   "theme": "auto",
+  "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "autoMode": {
     "soft_deny": [
@@ -216,6 +217,5 @@
   "feedbackSurveyState": {
     "lastShownTime": 1754156839358
   },
-  "mcpServers": {},
-  "agentPushNotifEnabled": true
+  "mcpServers": {}
 }

@@ -99,8 +99,6 @@ fi
 
 alias cl='clear; ls'
 
-alias ghstack='OAUTH_TOKEN=$(gh auth token) uv tool run ghstack'
-
 if exe_exists pulumi; then
     alias pu=pulumi
     # To be read as:
@@ -133,7 +131,6 @@ if exe_exists pulumi; then
             ${data:+--data} ${data:+"$data"} \
             -L "${backend_url}/$endpoint"
     }
-    alias dev-casey:run="pulumi env run pulumi/iwahbe/casey-dev-stack --interactive -- "
 fi
 
 if exe_exists terraform; then
@@ -165,6 +162,10 @@ fi
 
 if exe_exists mise; then
     eval "$(mise activate zsh)"
+fi
+
+if exe_exists claude; then
+    alias bclaude='b=$(git rev-parse --abbrev-ref origin/HEAD); git checkout "${b##*/}" && git pull && claude'
 fi
 
 # Terminal side configuration for libvterm.
